@@ -1,0 +1,62 @@
+# The AIOStreams module's test container.
+#
+#   docker compose -f docker-compose.test.yml run --rm test
+#
+# This is the sanctioned way to run this repository's gates. Nothing is built or
+# tested on the host.
+#
+# What this container is asserting that a host run does not:
+#
+#   - **The boundary.** This module compiles against the published SDK, the
+#     published SDUI contract and the standard library and nothing else, which
+#     boundary_test.go enforces by parsing every import. A host with a populated
+#     module cache, a leftover go.work or a stray `replace` can satisfy an import
+#     a third party's machine could not, and the boundary test still passes
+#     because the import resolved.
+#
+# Unlike `module-stremio-addons`, the tests here are **hermetic** — a fake
+# AIOStreams over httptest, reached by putting the fake's URL in the module's
+# settings. Keep them that way. The public instance serves nothing without
+# somebody's profile, and a profile URL is a credential no CI should hold: a test
+# against a real instance would be skipped, flaky, or a leak. This container
+# therefore needs no egress, and a test that starts needing some is a design
+# question rather than a compose-file change.
+#
+# For a shell in the same environment:
+#
+#   docker compose -f docker-compose.test.yml run --rm test bash
+name: mosaic-aiostreams-test
+
+services:
+  test:
+    # Pinned to go.mod's `go` directive. Bump both together.
+    image: golang:1.25-bookworm
+    working_dir: /src/module-aiostreams
+    environment:
+      # The bind mount carries a .git the container has no business stat-ing,
+      # and Go fails the build on its ownership rather than degrading.
+      GOFLAGS: -buildvcs=false
+    volumes:
+      - .:/src/module-aiostreams
+      - mosaic-aiostreams-gomod:/go/pkg/mod
+      - mosaic-aiostreams-gobuild:/root/.cache/go-build
+    command:
+      - bash
+      - -eu
+      - -o
+      - pipefail
+      - -c
+      - |
+        gofmt -l . > /tmp/unformatted
+        if [ -s /tmp/unformatted ]; then
+          echo "These files are not gofmt-clean:" >&2
+          cat /tmp/unformatted >&2
+          exit 1
+        fi
+        go build ./...
+        go vet ./...
+        go test ./...
+
+volumes:
+  mosaic-aiostreams-gomod:
+  mosaic-aiostreams-gobuild:
