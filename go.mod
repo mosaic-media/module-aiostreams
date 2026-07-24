@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/mosaic-media/contracts v0.14.0
-	github.com/mosaic-media/sdk v0.21.0
+	github.com/mosaic-media/sdk v0.22.0
 	github.com/mosaic-media/sdk/host v0.3.0
 )
 
