@@ -141,6 +141,10 @@ func (c *Capability) clientFrom(settings []byte) (*Client, error) {
 func (c *Capability) Manifest() v1.Manifest {
 	return v1.Manifest{
 		ID: CapabilityID, Version: moduleVersion, Name: "AIOStreams",
+		Description: "An independent, community-built aggregator: it searches many sources at once " +
+			"and returns one filtered, sorted list. Point Mosaic at a public or self-hosted instance, " +
+			"and everything about which sources it searches and which debrid service it uses is " +
+			"configured on that instance.",
 		Provides: []v1.Role{v1.RoleStream, v1.RoleSubtitles, v1.RoleSettingsUI},
 	}
 }
