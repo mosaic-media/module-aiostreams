@@ -136,3 +136,70 @@ jobs:
             --field event_type=core-module-release \
             --field "client_payload[module]=github.com/${GITHUB_REPOSITORY}" \
             --field "client_payload[version]=${GITHUB_REF_NAME}"
+
+  binaries:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # modulesign (build-manifest) lives in the platform repo; build it from a
+      # checkout. The documented interim until the manifest format is extracted
+      # to a public module.
+      - name: Check out platform for the signing tool
+        uses: actions/checkout@v4
+        with:
+          repository: mosaic-media/platform
+          path: .platform
+      - name: Build modulesign
+        run: cd .platform && go build -o "$GITHUB_WORKSPACE/modulesign" ./tools/modulesign
+
+      # CGO off, so every target cross-compiles from this one runner. The command
+      # binary is cmd/module-aiostreams, whose whole body is host.Serve.
+      - name: Cross-compile
+        run: |
+          mkdir -p dist
+          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            goos=${t%/*}; goarch=${t#*/}
+            name="module-aiostreams-${goos}-${goarch}"
+            [ "$goos" = "windows" ] && name="${name}.exe"
+            CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch go build \
+              -trimpath -ldflags "-s -w" \
+              -o "dist/${name}" ./cmd/module-aiostreams
+          done
+
+      # The module tells the release what it is (id, name, roles), so the
+      # manifest's identity has one source of truth — the Go code — not a copy
+      # here that drifts. The version is the tag, authoritative over the build's
+      # (devel).
+      - name: Emit the module's identity
+        run: ./dist/module-aiostreams-linux-amd64 --mosaic-manifest > dist/identity.json
+
+      # Join identity + SDK major + the binaries into the signed-ready manifest.
+      # SDK major is 0 while the SDK is pre-1.0 (host.SDKMajor). Each binary's URL
+      # points at this repository's own release assets — the module hosts its own
+      # bytes, which is why the URL is declared here and not by the registry.
+      - name: Build the manifest
+        run: |
+          pairs=()
+          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            goos=${t%/*}; goarch=${t#*/}
+            pairs+=("${goos}/${goarch}=dist/module-aiostreams-${goos}-${goarch}")
+          done
+          pairs+=("windows/amd64=dist/module-aiostreams-windows-amd64.exe")
+          ./modulesign build-manifest \
+            -identity dist/identity.json \
+            -sdk-major 0 \
+            -version "${GITHUB_REF_NAME}" \
+            -url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/module-aiostreams-{os}-{arch}{ext}" \
+            -out dist/manifest.json \
+            "${pairs[@]}"
+          echo "--- manifest ---"; cat dist/manifest.json
+
+      - name: Upload binaries and manifest to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" dist/module-aiostreams-* dist/manifest.json
