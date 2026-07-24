@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/mosaic-media/contracts/ui"
 	v1 "github.com/mosaic-media/sdk/contracts/platform/v1"
-	"github.com/mosaic-media/sdui/ui"
 )
 
 // SettingsUI renders the module's own settings screen as SDUI (RoleSettingsUI,
