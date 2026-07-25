@@ -49,7 +49,7 @@ func TestSettingsUIRendersAConfiguredInstance(t *testing.T) {
 		"Instance", "Serving streams", "Your instance", "v2.31.1",
 		// The change-instance form, and the reset that only exists once there is
 		// something to revert to.
-		"SubmitField", "$value", "configureModule", "Use a different instance", "Reset to default",
+		"Form", "TextInput", "instanceUrl", "submit", "configureModule", "Use a different instance", "Reset to default",
 		// The upstream is named, along with who runs the default, because a user
 		// deciding whether to keep the default needs both.
 		"AIOStreams", "ElfHosted")
@@ -160,7 +160,7 @@ func TestSettingsUIOnAFreshInstall(t *testing.T) {
 	// a machine with no egress". The screen still has to render.
 	ui := renderSettings(t, &http.Client{Transport: failingTransport{}}, nil)
 
-	requireContains(t, ui, "Default instance", "Use a different instance", "SubmitField")
+	requireContains(t, ui, "Default instance", "Use a different instance", "Form", "instanceUrl")
 	if strings.Contains(ui, "Reset to default") {
 		t.Error("an install already on the default must not be offered a reset to it")
 	}

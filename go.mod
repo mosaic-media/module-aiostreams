@@ -3,7 +3,7 @@ module github.com/mosaic-media/module-aiostreams
 go 1.25.0
 
 require (
-	github.com/mosaic-media/contracts v0.16.0
+	github.com/mosaic-media/contracts v0.32.0
 	github.com/mosaic-media/sdk v0.22.0
 	github.com/mosaic-media/sdk/host v0.4.0
 )

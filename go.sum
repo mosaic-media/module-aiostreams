@@ -32,8 +32,8 @@ github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Ky
 github.com/mattn/go-isatty v0.0.14/go.mod h1:7GGIvUiUoEMVVmxf/4nioHXj79iQHKdU27kJ6hsGG94=
 github.com/mattn/go-isatty v0.0.17 h1:BTarxUcIeDqL27Mc+vyvdWYSL28zpIhv3RoTdsLMPng=
 github.com/mattn/go-isatty v0.0.17/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
-github.com/mosaic-media/contracts v0.16.0 h1:PJECDziSwMEsqPzeimfYpuKOEwXgAuD6tMVH0+m79ZY=
-github.com/mosaic-media/contracts v0.16.0/go.mod h1:PTcqIYfXR9ATnb2ihAWD2sfg4+Tjihne7yIDfJwXUJ0=
+github.com/mosaic-media/contracts v0.32.0 h1:NOqCKykPo0suFEa7+8Pd8kogdq9hgITzSBbkZ+Hx238=
+github.com/mosaic-media/contracts v0.32.0/go.mod h1:PTcqIYfXR9ATnb2ihAWD2sfg4+Tjihne7yIDfJwXUJ0=
 github.com/mosaic-media/sdk v0.22.0 h1:AbN6OE3j3QMQj8HXPPxwzXnUkTpJyBoAZm9zfRghwMY=
 github.com/mosaic-media/sdk v0.22.0/go.mod h1:E+B7qxfjCSmymJPnBHN2/j38aM9+qAJbdaTVZBHHuyQ=
 github.com/mosaic-media/sdk/host v0.4.0 h1:5R8jZ3zlviXAbbyQdrRiTskehe0N9Fh0tJe6KSp1odA=

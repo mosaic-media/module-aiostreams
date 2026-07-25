@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/mosaic-media/contracts/sdui"
 	"github.com/mosaic-media/contracts/ui"
 	v1 "github.com/mosaic-media/sdk/contracts/platform/v1"
 )
@@ -122,12 +123,19 @@ func instanceSection(info InstanceInfo, custom bool) *ui.Element {
 // the instance handed the user. Splitting "self-hosted" from "profile" into two
 // controls would be a distinction this module cannot verify and does not need.
 func changeInstanceSection(custom bool) *ui.Element {
-	// The typed value substitutes for "$value" anywhere in the action, which is
-	// how a text field becomes a configureModule invoke (ADR 0038).
-	field := ui.Component("SubmitField",
-		ui.Prop("placeholder", "Paste an AIOStreams manifest URL…"),
-		ui.Prop("submitLabel", "Use this instance"),
-		ui.OnTap(ui.Invoke("configureModule", configureInput("$value"))))
+	// A form: the field writes `instanceUrl` into the form's scope, and submit
+	// merges the scope into the settings document the invoke carries. This
+	// replaces the "$value" substitution, which reached one field by rewriting a
+	// literal string anywhere in the action (ADR 0088).
+	field := ui.Form(
+		ui.Vars(sdui.Vars(sdui.Var("instanceUrl", sdui.VarString, ""))),
+		ui.SubmitLabel("Use this instance"),
+		ui.SubmitAction(ui.Submit(
+			ui.Invoke("configureModule", map[string]any{"moduleId": CapabilityID}), "settings")),
+		ui.TextInput(
+			ui.Prop("name", "instanceUrl"),
+			ui.Prop("placeholder", "Paste an AIOStreams manifest URL…"),
+			ui.Prop("validators", map[string]any{"required": true})))
 
 	els := []ui.El{
 		ui.Banner("Paste the manifest URL your AIOStreams instance gave you — from the public instance after you configure a profile, or from your own self-hosted one. The '/configure' page URL and a stremio:// install link work too.", ui.ToneInfo),
