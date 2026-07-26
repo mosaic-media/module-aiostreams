@@ -103,40 +103,55 @@ jobs:
           GOPROXY: https://proxy.golang.org,direct
           GOFLAGS: -mod=mod
 
-  # This module is composed into the Platform binary and required in its go.mod
-  # today — whether core by tier (ADR 0062) or an extension module still composed
-  # statically pending the move out of process (ADR 0079). Either way, its
-  # release reaches the Platform through the go.mod bump ADR 0078 automates, so
-  # this dispatch fires that bump. When an extension module does move out of
-  # process, its release will instead publish a signed binary to the repository
-  # (ADR 0065) and this job changes shape.
+  # ADR 0081 took this module out of the Platform binary. Nothing requires it in
+  # platform's go.mod any more; a Platform gains it when a *user* installs it,
+  # from the signed index the official registry publishes (ADR 0065, ADR 0079).
+  # A release therefore reaches people through the **catalogue**, not through a
+  # go.mod bump, and this dispatch is what tells the registry there is a newer
+  # version to catalogue — the last hand-done step between a tag and an
+  # installable module.
   #
-  # It fires last and only on success: the release job above has already proved
-  # the tag resolvable, so a dispatch arriving before that proof — which would
-  # move the proxy race into the other repository — cannot happen. The Platform
-  # side opens a pull request rather than committing; its verify.yml decides.
-  # The release is already complete by the time this job runs — the tag and the
-  # release object exist, and nothing here can un-publish them — so a red run
-  # costs nothing, and it is how a bump chain that has stopped working becomes
-  # visible. This guard used to warn and exit 0, which meant an unset token
-  # reported green while no bump was ever sent.
+  # It used to dispatch `core-module-release` at `platform`, which was right
+  # while this module was composed in and is now wrong twice over: the bump would
+  # move a require that no longer exists, and platform's core-module-bump.yml
+  # refuses a module it does not already require, deliberately — adding one is a
+  # human decision, not a dispatch. That dispatch could only ever have failed.
+  #
+  # `binaries` is a load-bearing dependency, not tidiness. The registry
+  # catalogues a release by downloading the `manifest.json` from its assets, so a
+  # dispatch that waited only on `release` would point the catalogue at a release
+  # object whose assets are still being cross-compiled and uploaded, and the
+  # entry would be refused for a module that is in fact fine. `release` stays in
+  # the list because the version it proved resolvable is the version being
+  # catalogued.
+  #
+  # A red run here costs nothing that can be undone — the tag, the release and
+  # its binaries all exist by now and nothing in this job can retract them — and
+  # it is how a catalogue chain that has stopped working becomes visible. That is
+  # why a missing token fails rather than warns: this guard used to exit 0, which
+  # meant an unset token reported green while nothing was ever sent.
   dispatch:
-    needs: release
+    needs: [release, binaries]
     runs-on: ubuntu-latest
     steps:
-      - name: Tell the Platform there is a new version
+      - name: Tell the registry there is a new version to catalogue
         env:
-          GH_TOKEN: ${{ secrets.PLATFORM_DISPATCH_TOKEN }}
+          GH_TOKEN: ${{ secrets.REGISTRY_DISPATCH_TOKEN }}
         run: |
           if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::PLATFORM_DISPATCH_TOKEN is not set — no bump was sent; bump the Platform by hand."
+            echo "::error::REGISTRY_DISPATCH_TOKEN is not set — nothing was catalogued; move this module's entry in the registry's registry.yaml by hand."
             exit 1
           fi
 
-          gh api repos/mosaic-media/platform/dispatches \
+          # The payload names the *repository*, not the module id. The catalogue
+          # is keyed on the repository because a repository name does not follow
+          # from an id — this one publishes a module whose id is `aiostreams` —
+          # and the repository is what locates the release to fetch a manifest
+          # from.
+          gh api repos/mosaic-media/registry/dispatches \
             --method POST \
-            --field event_type=core-module-release \
-            --field "client_payload[module]=github.com/${GITHUB_REPOSITORY}" \
+            --field event_type=module-released \
+            --field "client_payload[repo]=${GITHUB_REPOSITORY#*/}" \
             --field "client_payload[version]=${GITHUB_REF_NAME}"
 
   binaries:
