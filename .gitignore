@@ -2,3 +2,6 @@
 *.exe
 *.test
 *.out
+
+# Editor and IDE state
+.idea/
