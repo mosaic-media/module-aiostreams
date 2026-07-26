@@ -5,7 +5,7 @@ platform, sourcing from [AIOStreams](https://github.com/Viren070/AIOStreams).
 
 It is an optional Mosaic module: its own Go module importing only
 [`sdk`](https://github.com/mosaic-media/sdk) and
-[`sdui`](https://github.com/mosaic-media/contracts), compiled into a Mosaic Platform
+[`contracts`](https://github.com/mosaic-media/contracts), compiled into a Mosaic Platform
 binary and invoked through the Platform's capability registry. It owns no schema.
 
 ## Why this exists beside `module-stremio-addons`
