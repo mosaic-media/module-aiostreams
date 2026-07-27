@@ -91,6 +91,10 @@ func fakeInstance(t *testing.T) *httptest.Server {
 	mux.HandleFunc(profilePath+"/stream/movie/tt0133093.json", func(w http.ResponseWriter, _ *http.Request) { write(w, movieStreams) })
 	mux.HandleFunc(profilePath+"/stream/series/tt0903747:1:1.json", func(w http.ResponseWriter, _ *http.Request) { write(w, episodeStreams) })
 	mux.HandleFunc(profilePath+"/subtitles/movie/tt0133093.json", func(w http.ResponseWriter, _ *http.Request) { write(w, subtitles) })
+	// The episode path is registered only in its composed form, so a request
+	// built from the wrong coordinates 404s rather than quietly answering with
+	// the film's tracks. That is the same arrangement the stream fixture uses.
+	mux.HandleFunc(profilePath+"/subtitles/series/tt0903747:1:1.json", func(w http.ResponseWriter, _ *http.Request) { write(w, subtitles) })
 
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -181,6 +185,21 @@ func TestStreamsResolvesAFilmByIMDBIdentity(t *testing.T) {
 	}
 	if first.Label != "[RD+] AIOStreams 2160p" {
 		t.Errorf("label = %q, want the instance's short label", first.Label)
+	}
+	// The container and the two codecs (SDK v0.26.0). parseRelease has always
+	// worked these out and StreamLink had nowhere to put them, so they were
+	// discarded here — and this module reaches the library only through the
+	// enrichment pass, so unlike a module attaching its own Parts it had no
+	// second route for them either. They are what ADR 0048's playability
+	// decision reads.
+	if first.Container != "mkv" {
+		t.Errorf("container = %q, want mkv", first.Container)
+	}
+	if first.VideoCodec != "hevc" {
+		t.Errorf("videoCodec = %q, want hevc — ffprobe's spelling, not the release's x265", first.VideoCodec)
+	}
+	if first.AudioCodec != "eac3" {
+		t.Errorf("audioCodec = %q, want eac3", first.AudioCodec)
 	}
 
 	// The instance's own order is the user's configured sort, so it is carried
@@ -291,6 +310,37 @@ func TestSubtitlesResolveAndDeduplicate(t *testing.T) {
 	// twice is routine.
 	if len(resp.Subtitles) != 1 {
 		t.Fatalf("got %d tracks, want 1 after dedup: %+v", len(resp.Subtitles), resp.Subtitles)
+	}
+	if resp.Subtitles[0].Language != "eng" {
+		t.Errorf("language = %q, want eng", resp.Subtitles[0].Language)
+	}
+}
+
+// TestSubtitlesComposesTheEpisodeAddress is the subtitles half of what
+// TestStreamsComposesTheEpisodeAddress proves for streams, and it could not be
+// written until SDK v0.26.0: SubtitlesRequest carried no coordinates, so this
+// module called addressOf with two zeroes and could answer for a film and
+// nothing else.
+//
+// The fake answers only the composed path, so a request built from the wrong
+// coordinates — or from none — is a 404 rather than a silently different
+// result. That matters more here than it would elsewhere: subtitles for the
+// wrong episode are not an error anyone sees, they are a track that does not
+// match the dialogue.
+func TestSubtitlesComposesTheEpisodeAddress(t *testing.T) {
+	srv := fakeInstance(t)
+	resp, err := aiostreams.New(srv.Client()).Subtitles(context.Background(), v1.SubtitlesRequest{
+		Settings: settingsFor(t, srv.URL+profilePath),
+		Ref: v1.ContentRef{
+			MediaType: v1.MediaTVSeries, ExternalScheme: "imdb", ExternalID: "tt0903747",
+		},
+		Season: 1, Episode: 1,
+	})
+	if err != nil {
+		t.Fatalf("Subtitles: %v", err)
+	}
+	if len(resp.Subtitles) != 1 {
+		t.Fatalf("got %d tracks, want 1 — an empty result here means the episode address was not composed", len(resp.Subtitles))
 	}
 	if resp.Subtitles[0].Language != "eng" {
 		t.Errorf("language = %q, want eng", resp.Subtitles[0].Language)

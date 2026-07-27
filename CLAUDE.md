@@ -130,34 +130,42 @@ which nothing forces to agree with anything.
 
 When something cannot be expressed, that is a **finding**, not an obstacle to
 work around. Take it to the SDK as an additive `v0.x` bump, or record it in the
-roadmap as an open gap. **Do not simulate the missing surface locally.** Two are
-open from here:
+roadmap as an open gap. **Do not simulate the missing surface locally.** Two
+were open from here and both were found this way; SDK `v0.26.0` closed one of
+them and half of the other.
 
-- **`SubtitlesRequest` carries no season or episode.** `StreamRequest` grew them
-  for [ADR 0073](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0073-stream-resolution-is-decoupled-from-metadata-provenance.md);
-  the subtitles request did not, because nothing consumes subtitles yet. So this
-  module can only resolve subtitles for a film, and `addressOf` is called with
-  zero coordinates purely so a foreign ref is declined rather than turned into a
-  request with two empty strings in it. When a player lands, that is an additive
-  SDK bump and this passes them through unchanged.
-- **Most of what `parseRelease` works out never reaches the Part.** This is the
-  bigger of the two and it is *two* gaps stacked. `StreamLink` has no container,
-  codec or dimension fields at all, so the parse is narrowed to quality, size and
-  seeders on the way out of `Streams`; and the Platform's enrichment pass then
-  attaches only the edition label, the natural order, the location and the size,
-  so even quality and seeders are dropped before the Part is written
+- **`SubtitlesRequest` carries no season or episode — closed in SDK `v0.26.0`.**
+  `StreamRequest` grew them for
+  [ADR 0073](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0073-stream-resolution-is-decoupled-from-metadata-provenance.md)
+  and the subtitles request did not, because nothing consumed subtitles yet, so
+  this module could resolve subtitles for a film and for nothing else —
+  `addressOf` was called with two literal zeroes and there was nothing to compose
+  an episode id from. `Subtitles` now passes the request's own coordinates
+  through, and `TestSubtitlesComposesTheEpisodeAddress` pins it against a fake
+  that answers only the composed path.
+
+- **Most of what `parseRelease` works out never reaches the Part — half closed.**
+  This was *two* gaps stacked, and only the first is gone.
+
+  The SDK half is closed: `StreamLink` gained `Container`, `VideoCodec` and
+  `AudioCodec` in `v0.26.0`, so `streamLinkFrom` no longer narrows the parse to
+  quality, size and seeders on the way out of `Streams`.
+
+  **The Platform half is still open.** Its enrichment pass attaches only the
+  edition label, the natural order, the location and the size, so everything
+  else is dropped before the Part is written
   (`internal/platform/app/enrich_streams.go`, `attachResolvedStreams`).
   `AttachContentPartCommand` holds every one of those fields — a module
   attaching its own Parts fills them, which is why `module-stremio-addons` does —
-  but a provider answering the enrichment pass has no route to them.
+  but a provider answering the enrichment pass still has no route to them, and
+  now the reason is a missing pass-through rather than a missing field.
 
   It matters because container and codec are exactly what ADR 0048's playability
   decision reads, and an empty field there is not neutral: the same fields left
   empty once had the Platform relay ten gigabytes of Matroska to a browser.
-  Closing it is an additive SDK bump (the fields on `StreamLink`) plus a
-  pass-through in `attachResolvedStreams`. **Do not work around it here** — do
-  not attach Parts directly from this module to get the fields in, which would
-  make it a content source and duplicate the enrichment pass's idempotence rules.
+  **Do not work around it here** — do not attach Parts directly from this module
+  to get the fields in, which would make it a content source and duplicate the
+  enrichment pass's idempotence rules.
 
 ## The roadmap and the decision records
 

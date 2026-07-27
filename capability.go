@@ -224,6 +224,18 @@ func streamLinkFrom(s Stream) v1.StreamLink {
 		SizeBytes: d.sizeBytes,
 		Seeders:   d.seeders,
 		Location:  v1.MediaLocation{Scheme: v1.RemoteLocation, Provider: streamProvider, Ref: s.Ref()},
+		// The container and the two codecs, since SDK v0.26.0. Until then
+		// StreamLink had no fields for them, so most of what parseRelease worked
+		// out was discarded here — and this module reaches the library only
+		// through the enrichment pass (ADR 0073), so there was no second route
+		// for them either, the way a module attaching its own Parts has one.
+		//
+		// They are what ADR 0048's playability decision reads. An empty one is
+		// not neutral: the same fields left empty had ten gigabytes of Matroska
+		// relayed to a browser that could not decode it.
+		Container:  d.container,
+		VideoCodec: d.videoCodec,
+		AudioCodec: d.audioCodec,
 	}
 }
 
@@ -235,13 +247,14 @@ func (c *Capability) Subtitles(ctx context.Context, req v1.SubtitlesRequest) (v1
 	if err != nil {
 		return v1.SubtitlesResponse{}, err
 	}
-	// Zero coordinates, because SubtitlesRequest carries none: the Platform's
-	// enrichment pass resolves streams and not subtitles, since subtitles still
-	// have no consumer (ADR 0037). addressOf is used rather than the raw fields
-	// so a foreign ref is *declined* instead of becoming a request with two empty
-	// strings in it. When a player lands and SubtitlesRequest grows the
-	// coordinates, this passes them through unchanged.
-	typ, id, ok := addressOf(req.Ref, 0, 0)
+	// The request's own coordinates, since SDK v0.26.0 carries them. They were
+	// two literal zeroes until then, and that was the whole of the gap: this
+	// module is only ever reached about content it did not source (ADR 0073), so
+	// the ref carries a shared identity and no native id, and addressOf composes
+	// an episode as `<series>:<season>:<episode>` — with zeroes there was nothing
+	// to compose from and the module could answer for a film and nothing else.
+	// Same call and same helper; the dialect stays in addressOf.
+	typ, id, ok := addressOf(req.Ref, req.Season, req.Episode)
 	if !ok {
 		return v1.SubtitlesResponse{}, nil
 	}
