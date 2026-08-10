@@ -126,7 +126,7 @@ func changeInstanceSection(custom bool) *ui.Element {
 	// A form: the field writes `instanceUrl` into the form's scope, and submit
 	// merges the scope into the settings document the invoke carries. This
 	// replaces the "$value" substitution, which reached one field by rewriting a
-	// literal string anywhere in the action (ADR 0088).
+	// literal string anywhere in the action (contracts#12).
 	field := ui.Form(
 		ui.Vars(sdui.Vars(sdui.Var("instanceUrl", sdui.VarString, ""))),
 		ui.SubmitLabel("Use this instance"),
