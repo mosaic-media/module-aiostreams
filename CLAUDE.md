@@ -134,6 +134,15 @@ roadmap as an open gap. **Do not simulate the missing surface locally.** Two
 were open from here and both were found this way; SDK `v0.26.0` closed one of
 them and half of the other.
 
+**Which side a finding lands on is not arbitrary.** The SDK says how a module
+interacts with the Platform; the Platform holds the implementations. The SDK
+therefore names no library and depends on nothing
+([ADR 0135](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0135-the-sdk-carries-no-implementation.md)).
+The second gap below is the worked example: the field half was an SDK bump
+because a field is a shape, and the half still open is a Platform pass-through
+because moving values through the enrichment pass is behaviour. That is the
+ordinary division, not a consolation prize for the half that did not fit.
+
 - **`SubtitlesRequest` carries no season or episode — closed in SDK `v0.26.0`.**
   `StreamRequest` grew them for
   [ADR 0073](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0073-stream-resolution-is-decoupled-from-metadata-provenance.md)
