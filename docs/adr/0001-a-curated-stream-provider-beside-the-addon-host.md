@@ -112,7 +112,7 @@ rather than "broken", that the path segments are a credential, that the
 `/configure` URL is a paste a user will make. A module that could point anywhere
 knows none of that and is `module-stremio-addons` with one slot.
 
-**Fold it in as a second core module.** Rejected: [platform#3](https://github.com/mosaic-media/platform/blob/main/docs/adr/0003-platform-as-execution-kernel.md)'s core tier is the
+**Fold it in as a second core module.** Rejected: [architecture#3](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0003-two-module-tiers.md)'s core tier is the
 guarantee clause — what Mosaic is not Mosaic without. Streams are not that; a
 metadata-only install is a working Mosaic.
 
