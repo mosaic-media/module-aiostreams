@@ -12,15 +12,15 @@
 // trust decision collapses from "every addon a user might add" to "one instance,
 // named in settings".
 //
-// It fills the stream and subtitle roles and nothing else (ADR 0027, ADR 0037).
+// It fills the stream and subtitle roles and nothing else (sdk#2, module-stremio-addons#1).
 // It sources no metadata, contributes no search results and declares no catalogs,
 // so it never puts a title into the library — it fills in what plays for titles
-// some other module described (ADR 0073). An install with only this module and a
+// some other module described (platform#46). An install with only this module and a
 // metadata module is exactly the intended shape.
 //
 // Its own Go module (github.com/mosaic-media/module-aiostreams) importing only
 // the published SDK, the published SDUI contract and the standard library, and
 // an anti-corruption layer for AIOStreams' dialect of the Stremio addon protocol
-// (ADR 0051): the addressing, the release-text conventions and the instance URL
+// (module-stremio-addons#2): the addressing, the release-text conventions and the instance URL
 // shape stop here, and the Platform learns none of them.
 package aiostreams

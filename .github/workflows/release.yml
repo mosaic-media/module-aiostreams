@@ -103,9 +103,9 @@ jobs:
           GOPROXY: https://proxy.golang.org,direct
           GOFLAGS: -mod=mod
 
-  # ADR 0081 took this module out of the Platform binary. Nothing requires it in
+  # platform#51 took this module out of the Platform binary. Nothing requires it in
   # platform's go.mod any more; a Platform gains it when a *user* installs it,
-  # from the signed index the official registry publishes (ADR 0065, ADR 0079).
+  # from the signed index the official registry publishes (platform#40, platform#49).
   # A release therefore reaches people through the **catalogue**, not through a
   # go.mod bump, and this dispatch is what tells the registry there is a newer
   # version to catalogue — the last hand-done step between a tag and an

@@ -16,7 +16,7 @@ const (
 	//
 	// It sorts before "stremio", and that has a consequence worth stating rather
 	// than discovering: the Platform resolves stream providers in module-id order
-	// and stops at the first that answers (ADR 0073), so on an install running
+	// and stops at the first that answers (platform#46), so on an install running
 	// both, AIOStreams is asked first and its releases are the ones attached. That
 	// is the intended precedence — a single curated aggregator ahead of an
 	// open-ended addon list — but it is alphabetical accident rather than a policy
@@ -28,7 +28,7 @@ const (
 	modulePath = "github.com/mosaic-media/module-aiostreams"
 	// streamProvider names the resolving service recorded on a RemoteLocation
 	// Part. The binding records where the reference came from; the bytes are
-	// resolved later, by a playback module (ADR 0045).
+	// resolved later, by a playback module (platform#25).
 	streamProvider = "aiostreams"
 	// imdbScheme is the shared external identity this module can address content
 	// by. AIOStreams keys on Stremio ids, which are IMDB ids for film and
@@ -42,7 +42,7 @@ var moduleVersion = v1.ModuleVersion(modulePath)
 
 // Capability satisfies the SDK's capability contract and every provider role it
 // declares. The assertions fail to compile if the module drifts from a role it
-// claims to fill (ADR 0027).
+// claims to fill (sdk#2).
 var (
 	_ v1.Capability         = (*Capability)(nil)
 	_ v1.StreamProvider     = (*Capability)(nil)
@@ -56,13 +56,13 @@ var (
 // **What it deliberately does not fill is the point.** It declares no metadata,
 // search or catalog role, so it can never put a title into the library or offer
 // one in a search — an install adds titles through a metadata module and this
-// fills in what plays (ADR 0073). That is a narrower surface than
+// fills in what plays (platform#46). That is a narrower surface than
 // `module-stremio-addons`, which hosts whatever a user pastes in and therefore
 // inherits whatever those addons do; here the trust decision is a single
 // instance URL a user can read.
 //
 // It holds an HTTP client and a manifest cache. The instance it points at is a
-// user-managed setting handed in per invocation (ADR 0021), so one registered
+// user-managed setting handed in per invocation (platform#17), so one registered
 // module serves whatever each install configured.
 type Capability struct {
 	httpClient *http.Client
@@ -136,7 +136,7 @@ func (c *Capability) clientFrom(settings []byte) (*Client, error) {
 	return newClient(c.httpClient, base, c.manifests), nil
 }
 
-// Manifest is the module's self-declaration (ADR 0027): the two source roles it
+// Manifest is the module's self-declaration (sdk#2): the two source roles it
 // fills, and the settings screen that configures them.
 func (c *Capability) Manifest() v1.Manifest {
 	return v1.Manifest{
@@ -152,7 +152,7 @@ func (c *Capability) Manifest() v1.Manifest {
 // Import is refused, and that refusal is the module's shape rather than an
 // unimplemented corner.
 //
-// Import materialises a ref a *read* role produced (ADR 0028). This module fills
+// Import materialises a ref a *read* role produced (platform#18). This module fills
 // no read role that produces one: it has no search, no catalogs and no metadata,
 // so nothing can hand it a ref it made, and materialising from a stream listing
 // would mean inventing a title out of release names. Titles come from a metadata
@@ -164,7 +164,7 @@ func (c *Capability) Import(_ context.Context, _ v1.ContentService, _ v1.ImportR
 // Streams resolves playable locations for a materialised item (RoleStream).
 //
 // It is called by the Platform's enrichment pass for content some *other* module
-// sourced (ADR 0073), which is the only way it is ever called: a ref this module
+// sourced (platform#46), which is the only way it is ever called: a ref this module
 // produced does not exist. So the ref carries a shared external identity, and
 // addressOf decides whether it is one AIOStreams can speak.
 //
@@ -195,7 +195,7 @@ func (c *Capability) Streams(ctx context.Context, req v1.StreamRequest) (v1.Stre
 	// profile id, which is a credential in the same sense a session token is —
 	// anyone holding it holds that user's configuration, including whatever
 	// debrid key it was built with. The host is the useful half for diagnosis and
-	// is safe (ADR 0056, ADR 0059).
+	// is safe (platform#34, sdk#5).
 	v1.TelemetryFrom(ctx).Info("aiostreams resolved streams",
 		v1.String("instance_host", instanceHost(client.Base())),
 		v1.String("native_type", typ),
@@ -210,7 +210,7 @@ func (c *Capability) Streams(ctx context.Context, req v1.StreamRequest) (v1.Stre
 
 // streamLinkFrom maps one AIOStreams result to the SDK's StreamLink, carrying
 // the release detail parsed at this boundary so a consumer ranks on typed fields
-// rather than re-deriving them from a URL (ADR 0037, ADR 0051).
+// rather than re-deriving them from a URL (module-stremio-addons#1, module-stremio-addons#2).
 func streamLinkFrom(s Stream) v1.StreamLink {
 	d := parseRelease(s)
 	return v1.StreamLink{
@@ -227,10 +227,10 @@ func streamLinkFrom(s Stream) v1.StreamLink {
 		// The container and the two codecs, since SDK v0.26.0. Until then
 		// StreamLink had no fields for them, so most of what parseRelease worked
 		// out was discarded here — and this module reaches the library only
-		// through the enrichment pass (ADR 0073), so there was no second route
+		// through the enrichment pass (platform#46), so there was no second route
 		// for them either, the way a module attaching its own Parts has one.
 		//
-		// They are what ADR 0048's playability decision reads. An empty one is
+		// They are what platform#27's playability decision reads. An empty one is
 		// not neutral: the same fields left empty had ten gigabytes of Matroska
 		// relayed to a browser that could not decode it.
 		Container:  d.container,
@@ -239,7 +239,7 @@ func streamLinkFrom(s Stream) v1.StreamLink {
 	}
 }
 
-// Subtitles resolves subtitle tracks for an item (RoleSubtitles, ADR 0037). Like
+// Subtitles resolves subtitle tracks for an item (RoleSubtitles, module-stremio-addons#1). Like
 // Streams it is a source role and the consumer is a player; it returns an empty
 // response, no error, when the instance serves none.
 func (c *Capability) Subtitles(ctx context.Context, req v1.SubtitlesRequest) (v1.SubtitlesResponse, error) {
@@ -249,7 +249,7 @@ func (c *Capability) Subtitles(ctx context.Context, req v1.SubtitlesRequest) (v1
 	}
 	// The request's own coordinates, since SDK v0.26.0 carries them. They were
 	// two literal zeroes until then, and that was the whole of the gap: this
-	// module is only ever reached about content it did not source (ADR 0073), so
+	// module is only ever reached about content it did not source (platform#46), so
 	// the ref carries a shared identity and no native id, and addressOf composes
 	// an episode as `<series>:<season>:<episode>` — with zeroes there was nothing
 	// to compose from and the module could answer for a film and nothing else.
@@ -271,7 +271,7 @@ func (c *Capability) Subtitles(ctx context.Context, req v1.SubtitlesRequest) (v1
 
 // addressOf works out how to ask the instance about the item a request names.
 //
-// This is the anti-corruption layer doing its job (ADR 0051, ADR 0073). The ref
+// This is the anti-corruption layer doing its job (module-stremio-addons#2, platform#46). The ref
 // arrives describing a title some other module sourced, carrying whatever shared
 // identities that module wrote. Only an IMDB id is usable — it is the identity
 // Stremio-protocol sources key on — and an episode's id is composed here as

@@ -13,18 +13,18 @@ import (
 // TestModuleImportsOnlyPublishedContracts is the module boundary made
 // executable: this module must use only the published *contract* modules — the
 // SDK (mosaic-sdk) and the shared SDUI contract (mosaic-sdui, which a module
-// contributes its settings UI with, ADR 0038) — and the standard library.
+// contributes its settings UI with, sdk#4) — and the standard library.
 //
 // It is a separate Go module, so Go itself already rejects a Platform-internal
 // import; this parse keeps the intent explicit and catches a third-party
-// dependency creeping in (ADR 0008, ADR 0016, contracts#3).
+// dependency creeping in (sdk#1, platform#12, contracts#3).
 //
 // It also catches the specific temptation this module has and the others do not:
 // `module-stremio-addons` already speaks the same wire protocol, and importing
 // its client would look like avoiding duplication. It is not available to import
 // — a module may not depend on another module — and the small amount of shared
 // shape here is the price of each module being an anti-corruption layer for its
-// own upstream (ADR 0051).
+// own upstream (module-stremio-addons#2).
 func TestModuleImportsOnlyPublishedContracts(t *testing.T) {
 	const (
 		sdkPrefix      = "github.com/mosaic-media/sdk/"
@@ -63,7 +63,7 @@ func TestModuleImportsOnlyPublishedContracts(t *testing.T) {
 				// The published SDK — the primary contract a module builds against.
 			case strings.HasPrefix(path, sduiPrefix):
 				// The shared SDUI contract — a module builds its own settings UI with
-				// the producer binding (ADR 0038, contracts#3).
+				// the producer binding (sdk#4, contracts#3).
 			case strings.HasPrefix(path, platformPrefix):
 				t.Errorf("%s imports private Platform package %q; a module may import only the SDK", name, path)
 			case strings.HasPrefix(path, modulePrefix):

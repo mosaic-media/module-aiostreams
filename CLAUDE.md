@@ -1,7 +1,7 @@
 # Claude Instructions — module-aiostreams
 
 A **dedicated stream provider** for one named upstream. It is an *extension*
-module ([ADR 0062](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0062-two-module-tiers.md)),
+module ([platform#3](https://github.com/mosaic-media/platform/blob/main/docs/adr/0003-platform-as-execution-kernel.md)),
 like `module-stremio-addons` and unlike the core metadata modules — nothing
 requires it, and an install without it still works.
 
@@ -20,7 +20,7 @@ a single URL a user can read.
 not available to build — a module may not import another module, and
 `boundary_test.go` fails on it — and it is not wanted either. Each module is an
 anti-corruption layer for *its own* upstream
-([ADR 0051](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0051-modules-as-anti-corruption-layers.md)),
+([module-stremio-addons#2](https://github.com/mosaic-media/module-stremio-addons/blob/main/docs/adr/0002-modules-as-anti-corruption-layers.md)),
 and the small overlap in wire shapes is the price of that, not a defect. They
 already differ where it matters: this one has no per-addon routing, no addon
 catalog, no candidate sampling, and its release parser is token-based because
@@ -31,7 +31,7 @@ AIOStreams lets a user write their own result formatter.
 It fills **stream**, **subtitles** and **settings UI**, and must acquire no
 metadata, search or catalog role. It has no way to make a `ContentRef` and
 `Import` refuses on purpose — titles come from a metadata module and this fills
-in what plays ([ADR 0073](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0073-stream-resolution-is-decoupled-from-metadata-provenance.md)).
+in what plays ([platform#46](https://github.com/mosaic-media/platform/blob/main/docs/adr/0046-stream-resolution-is-decoupled-from-metadata-provenance.md)).
 AIOStreams *does* serve catalogs, and adding that role is exactly the change that
 would turn this into a second content source; it is left out deliberately.
 
@@ -119,11 +119,11 @@ which nothing forces to agree with anything.
 - **Commit author identity** must be `AdamNi-7080 <anicholls41@gmail.com>`.
 - The test container green before pushing.
 - Observability goes through the SDK's ambient `v1.Telemetry`
-  ([ADR 0059](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0059-modules-observe-through-the-sdk.md)),
+  ([sdk#5](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0005-modules-observe-through-the-sdk.md)),
   reached as `TelemetryFrom(ctx)`. Do not print, and do not configure an
   exporter, a sink or retention — the Platform owns the observability plane.
 - **MIT-licensed**, unlike the Platform's AGPL
-  ([ADR 0022](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0022-licensing.md)).
+  ([platform#1](https://github.com/mosaic-media/platform/blob/main/docs/adr/0001-transactional-store-extensibility.md)).
   Files here carry no SPDX header — match the files already present.
 
 ## Modules are the forcing function for the SDK
@@ -137,7 +137,7 @@ them and half of the other.
 **Which side a finding lands on is not arbitrary.** The SDK says how a module
 interacts with the Platform; the Platform holds the implementations. The SDK
 therefore names no library and depends on nothing
-([ADR 0135](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0135-the-sdk-carries-no-implementation.md)).
+([sdk#10](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0010-the-sdk-carries-no-implementation.md)).
 The second gap below is the worked example: the field half was an SDK bump
 because a field is a shape, and the half still open is a Platform pass-through
 because moving values through the enrichment pass is behaviour. That is the
@@ -145,7 +145,7 @@ ordinary division, not a consolation prize for the half that did not fit.
 
 - **`SubtitlesRequest` carries no season or episode — closed in SDK `v0.26.0`.**
   `StreamRequest` grew them for
-  [ADR 0073](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0073-stream-resolution-is-decoupled-from-metadata-provenance.md)
+  [platform#46](https://github.com/mosaic-media/platform/blob/main/docs/adr/0046-stream-resolution-is-decoupled-from-metadata-provenance.md)
   and the subtitles request did not, because nothing consumed subtitles yet, so
   this module could resolve subtitles for a film and for nothing else —
   `addressOf` was called with two literal zeroes and there was nothing to compose
@@ -169,7 +169,7 @@ ordinary division, not a consolation prize for the half that did not fit.
   but a provider answering the enrichment pass still has no route to them, and
   now the reason is a missing pass-through rather than a missing field.
 
-  It matters because container and codec are exactly what ADR 0048's playability
+  It matters because container and codec are exactly what [platform#27](https://github.com/mosaic-media/platform/blob/main/docs/adr/0027-stream-selection-against-a-client-profile.md)'s playability
   decision reads, and an empty field there is not neutral: the same fields left
   empty once had the Platform relay ten gigabytes of Matroska to a browser.
   **Do not work around it here** — do not attach Parts directly from this module

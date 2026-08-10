@@ -34,7 +34,7 @@ It fills **stream** and **subtitles**, plus its own **settings screen**. It fill
 no metadata, search or catalog role, so it never puts a title into the library.
 Titles are added from a metadata module (Cinemeta, TMDB) and this fills in what
 plays, through the Platform's stream-enrichment pass
-([ADR 0073](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0073-stream-resolution-is-decoupled-from-metadata-provenance.md)).
+([platform#46](https://github.com/mosaic-media/platform/blob/main/docs/adr/0046-stream-resolution-is-decoupled-from-metadata-provenance.md)).
 
 It addresses content by **IMDB id**, which is what Stremio-protocol sources key
 on, composing an episode as `<series>:<season>:<episode>` at this boundary. A
@@ -50,7 +50,7 @@ One setting: the instance.
 ```
 
 Set through the module's settings screen at runtime
-([ADR 0021](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0021-module-settings.md)),
+([platform#17](https://github.com/mosaic-media/platform/blob/main/docs/adr/0017-module-settings.md)),
 not env vars and not Platform config. The base URL, the `/manifest.json` URL, the
 `/configure` page URL and a `stremio://` install link are all accepted and
 normalise to the same base — with the profile segments preserved, because those

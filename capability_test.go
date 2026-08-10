@@ -127,7 +127,7 @@ func TestManifestDeclaresOnlyTheSourceRolesItFills(t *testing.T) {
 	}
 	// The absences are the module's shape, not an oversight: a stream provider
 	// that acquired a metadata or catalog role would start putting titles into
-	// the library, which is another tier's job (ADR 0073).
+	// the library, which is another tier's job (platform#46).
 	for _, unwanted := range []v1.Role{v1.RoleMetadata, v1.RoleSearch, v1.RoleCatalog, v1.RolePlayback} {
 		if declared[unwanted] {
 			t.Errorf("manifest declares %q; this module is a stream provider only", unwanted)
@@ -190,7 +190,7 @@ func TestStreamsResolvesAFilmByIMDBIdentity(t *testing.T) {
 	// worked these out and StreamLink had nowhere to put them, so they were
 	// discarded here — and this module reaches the library only through the
 	// enrichment pass, so unlike a module attaching its own Parts it had no
-	// second route for them either. They are what ADR 0048's playability
+	// second route for them either. They are what platform#27's playability
 	// decision reads.
 	if first.Container != "mkv" {
 		t.Errorf("container = %q, want mkv", first.Container)

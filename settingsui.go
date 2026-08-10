@@ -10,7 +10,7 @@ import (
 )
 
 // SettingsUI renders the module's own settings screen as SDUI (RoleSettingsUI,
-// ADR 0038): which instance is in use and whether it is actually serving,
+// sdk#4): which instance is in use and whether it is actually serving,
 // a way to open that instance's configuration page, a field to point the module
 // at a different instance, and a way back to the default.
 //
@@ -188,7 +188,7 @@ func statusRow(els ...ui.El) *ui.Element {
 // page is not a link. So the credential is absent from everything *rendered* and
 // present in an action payload — reaching only the admin who already passed
 // `module.read` to open this screen, but out of reach of the Platform's
-// redaction classes, which cannot see inside a module's settings (ADR 0056).
+// redaction classes, which cannot see inside a module's settings (platform#34).
 // That is the same gap `module-tmdb` records against `configureModule`, arriving
 // by a different route, and it is written down rather than papered over.
 func maskInstanceURL(base string) string {

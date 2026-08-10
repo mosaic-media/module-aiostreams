@@ -15,7 +15,7 @@ import (
 // instance URL forms a user can paste, the subset of the Stremio addon protocol
 // AIOStreams speaks, and the release text its formatters emit. Nothing above
 // this file sees an AIOStreams shape, and the Platform sees none at all
-// (ADR 0051).
+// (module-stremio-addons#2).
 
 // DefaultInstance is the public AIOStreams instance run by ElfHosted, and the
 // module's default.
@@ -135,7 +135,7 @@ func (s Stream) text() string {
 }
 
 // Subtitle is the subset of a subtitles response entry this module reads
-// (ADR 0037): a track's language and file URL.
+// (module-stremio-addons#1): a track's language and file URL.
 type Subtitle struct {
 	ID   string `json:"id"`
 	URL  string `json:"url"`
@@ -187,7 +187,7 @@ func (c *Client) Base() string { return c.base }
 
 // Streams fetches every stream the instance offers for a content id.
 //
-// All of them rather than the best one (ADR 0049): AIOStreams' whole purpose is
+// All of them rather than the best one (platform#28): AIOStreams' whole purpose is
 // to return a filtered, sorted *set*, and which member of it a particular client
 // can play is not knowable here. The order is the instance's own, which is the
 // user's configured sort — so it is carried through rather than re-ranked.
@@ -450,12 +450,12 @@ func (c *Client) getJSON(ctx context.Context, url string, out any) error {
 }
 
 // releaseDetail is what a consumer ranks a candidate on, parsed out of the
-// stream's free text and behaviorHints (ADR 0037, ADR 0048).
+// stream's free text and behaviorHints (module-stremio-addons#1, platform#27).
 //
 // Every field is best-effort and every one of them is a *guess about a file*
 // rather than a fact about it — the release text is written by whoever made the
 // release, and it lies. What a candidate actually contains is settled by probing
-// the bytes (ADR 0050). Filling them anyway is what makes a candidate list
+// the bytes (platform#29). Filling them anyway is what makes a candidate list
 // rankable, and an empty field is not neutral: it was left empty once in the
 // Stremio module and the Platform relayed ten gigabytes of Matroska to a browser.
 type releaseDetail struct {
@@ -702,7 +702,7 @@ func digitsAfter(text, marker string) (int, bool) {
 
 // dimensionsFor turns a resolution label into nominal dimensions. It is a
 // ranking and display aid, not a measurement — the real numbers come from a
-// probe (ADR 0050).
+// probe (platform#29).
 func dimensionsFor(quality string) (int, int) {
 	switch quality {
 	case "2160p":
