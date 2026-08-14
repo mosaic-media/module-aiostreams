@@ -12,13 +12,16 @@ A record is cited from another repository as `module-aiostreams#N`, written as a
 
 Decisions held elsewhere that these records cite. They bind work here and are not repeated — follow the link.
 
+**`architecture`**
+
+- [architecture#3](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0003-two-module-tiers.md)
+
 **`module-stremio-addons`**
 
 - [module-stremio-addons#2](https://github.com/mosaic-media/module-stremio-addons/blob/main/docs/adr/0002-modules-as-anti-corruption-layers.md)
 
 **`platform`**
 
-- [platform#3](https://github.com/mosaic-media/platform/blob/main/docs/adr/0003-platform-as-execution-kernel.md)
 - [platform#17](https://github.com/mosaic-media/platform/blob/main/docs/adr/0017-module-settings.md)
 - [platform#27](https://github.com/mosaic-media/platform/blob/main/docs/adr/0027-stream-selection-against-a-client-profile.md)
 - [platform#29](https://github.com/mosaic-media/platform/blob/main/docs/adr/0029-probing-and-the-per-stream-playback-decision.md)
