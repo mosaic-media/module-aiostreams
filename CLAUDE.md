@@ -166,10 +166,11 @@ records and this file is not.
 
 The index script and the citation lint that
 [`architecture`](https://github.com/mosaic-media/architecture) owns for the fleet
-are **not vendored here**, so nothing in this repository's gate checks that the
-index is current or that a citation resolves. Until they are, both are on you:
-regenerate the index when you add a record, and write every citation as a
-`repo#N` link.
+are **vendored into `scripts/` and run by this repository's gate**, so a stale
+index or an unresolvable citation refuses a push here. **Do not edit either copy
+here** — their source is `architecture/scripts/` and a drifted copy is a gate
+enforcing a rule that has moved, which has happened once already. Change them
+there and re-vendor with `architecture/scripts/vendored_scripts.py`.
 
 ## Modules are the forcing function for the SDK
 
