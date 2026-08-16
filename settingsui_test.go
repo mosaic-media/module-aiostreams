@@ -90,10 +90,11 @@ func TestSettingsUIReportsAnUnreachableInstance(t *testing.T) {
 // configuration, including whatever debrid key built it. A settings screen is a
 // page people screenshot when asking for help.
 //
-// The assertion is over *rendered text* rather than over the whole payload, and
+// The assertion is over rendered text rather than over the whole payload, and
 // the difference is the honest limit: the Configure button's action necessarily
 // carries the full URL, because a link to somebody else's configuration page is
-// not a link. Nothing a screenshot captures may contain it.
+// not a link. Nothing a screenshot captures may contain it. Asserting over the
+// whole payload would turn this into a test that forbids the link.
 func TestSettingsUIMasksTheProfileInTheURL(t *testing.T) {
 	srv := fakeInstance(t)
 	resp, err := aiostreams.New(srv.Client()).SettingsUI(context.Background(), v1.SettingsUIRequest{

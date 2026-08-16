@@ -1,28 +1,22 @@
 // Command module-aiostreams runs this module as its own process, for a Platform
 // that hosts it out of process (platform#39, sdk#7).
 //
-// The whole of it is one line, and that is the point rather than a
-// simplification. platform#39 is arranged around the property that crossing the
-// process boundary must not change what a module author writes: the Capability
-// below is the same plain Go value the Platform used to link into its own
-// binary, its provider roles are the same methods, and its tests still run with
-// no transport at all. What changes is that something now serves it.
+// It is one line because crossing the process boundary must not change what a
+// module author writes (platform#39): the Capability below is the same plain Go
+// value a statically composed Platform would link in, its provider roles are the
+// same methods, and its tests run with no transport at all. This module builds and
+// behaves identically whether or not this file is used — nothing else here
+// imports it, and aiostreams.New remains what a host calls.
 //
-// This module builds and behaves identically whether or not this file is used.
-// Nothing else here imports it, and `aiostreams.New` remains what a
-// statically-composed Platform would call; the switch to out-of-process is a
-// composition change in the Platform, not a change here.
+// Two constraints a module inherits from host.Serve, neither of them obvious
+// from this file:
 //
-// Two things a module author inherits by using host.Serve, both easy to trip
-// over and neither obvious from this file:
-//
-//   - **Nothing may be written to stdout.** go-plugin writes its handshake
-//     there, and anything else corrupts it. Use the Telemetry reached from the
+//   - Nothing may be written to stdout. go-plugin writes its handshake there,
+//     and anything else corrupts it. Use the Telemetry reached from the
 //     invocation's context (sdk#5).
-//   - **The Caller is a handle, not a session.** It is minted per invocation and
+//   - The Caller is a handle, not a session. It is minted per invocation and
 //     stops resolving when that invocation returns, so it cannot usefully be
-//     stored. Module code forwards what it was given, exactly as platform#13
-//     already required.
+//     stored. Forward what you were given (platform#13).
 package main
 
 import (

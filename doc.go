@@ -1,26 +1,23 @@
-// Package aiostreams is the AIOStreams module: a **dedicated stream provider**
-// for one named upstream, as distinct from `module-stremio-addons`, which is a
-// host for whatever addons a user pastes in.
+// Package aiostreams is a dedicated stream provider for one named upstream, as
+// distinct from module-stremio-addons, which is a host for whatever addons a
+// user pastes in.
 //
-// The distinction is the reason this module exists. The addon module can source
-// from any Stremio addon, and that is its value and its problem: the addon
-// ecosystem is community-made, unreviewed, and unbounded, so nothing about a
-// configured addon can be guaranteed — not its behaviour, not its reachability,
-// not what it does with the request. An install that wants streams should not
-// have to adopt that whole surface to get them. This module talks to exactly one
-// upstream, AIOStreams, which is itself an aggregator: the breadth stays, and the
-// trust decision collapses from "every addon a user might add" to "one instance,
-// named in settings".
+// That distinction is the reason this module exists. The addon ecosystem is
+// community-made, unreviewed and unbounded, so nothing about a configured addon
+// can be guaranteed, and an install that only wants streams should not have to
+// adopt that whole surface to get them. AIOStreams is itself an aggregator, so
+// pointing at one instance keeps the breadth and collapses the trust decision to
+// a single URL named in settings.
 //
 // It fills the stream and subtitle roles and nothing else (sdk#2, module-stremio-addons#1).
 // It sources no metadata, contributes no search results and declares no catalogs,
 // so it never puts a title into the library — it fills in what plays for titles
 // some other module described (platform#46). An install with only this module and a
-// metadata module is exactly the intended shape.
+// metadata module is the intended shape.
 //
-// Its own Go module (github.com/mosaic-media/module-aiostreams) importing only
-// the published SDK, the published SDUI contract and the standard library, and
-// an anti-corruption layer for AIOStreams' dialect of the Stremio addon protocol
-// (module-stremio-addons#2): the addressing, the release-text conventions and the instance URL
-// shape stop here, and the Platform learns none of them.
+// It is its own Go module (github.com/mosaic-media/module-aiostreams) importing
+// only the published SDK, the published SDUI contract and the standard library,
+// and an anti-corruption layer for AIOStreams' dialect of the Stremio addon
+// protocol (module-stremio-addons#2): the addressing, the release-text conventions and
+// the instance URL shape stop here, and the Platform learns none of them.
 package aiostreams

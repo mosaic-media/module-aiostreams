@@ -14,10 +14,9 @@ import (
 // a way to open that instance's configuration page, a field to point the module
 // at a different instance, and a way back to the default.
 //
-// This role is not decoration for this module. The public default is a *host*,
-// not a working configuration — AIOStreams serves nothing until a profile exists
-// — so this screen is the whole path from "installed" to "resolving streams". A
-// capability with no client path is not done, it is owed.
+// The public default is a host, not a working configuration — AIOStreams serves
+// nothing until a profile exists — so this screen is the whole path from
+// "installed" to "resolving streams".
 //
 // Every mutating control is an Invoke of the Platform's configureModule command
 // carrying the complete new settings document, so the Platform stays the one
@@ -52,12 +51,11 @@ func (c *Capability) SettingsUI(ctx context.Context, req v1.SettingsUIRequest) (
 // configureInput builds the configureModule invoke input for an instance URL —
 // the complete settings document the Platform persists.
 //
-// One field, so this module escapes the echo-the-secret problem `module-tmdb`
-// documents: configureModule replaces the whole document with no merge, which
-// forces a module with several settings to carry every one of them through the
-// client on every control. Here the document *is* the one value the control is
-// changing. That is luck rather than a solution — the SDK gap is still open —
-// and it is a reason to think hard before this module grows a second setting.
+// configureModule replaces the whole document with no merge, so every control
+// has to send every setting. With one field the document is the value the
+// control is changing, and nothing has to be echoed back through the client. A
+// second setting would drag that problem in here, and is a reason to think hard
+// before adding one.
 func configureInput(instanceURL string) map[string]any {
 	return map[string]any{
 		"moduleId": CapabilityID,
@@ -123,10 +121,10 @@ func instanceSection(info InstanceInfo, custom bool) *ui.Element {
 // the instance handed the user. Splitting "self-hosted" from "profile" into two
 // controls would be a distinction this module cannot verify and does not need.
 func changeInstanceSection(custom bool) *ui.Element {
-	// A form: the field writes `instanceUrl` into the form's scope, and submit
-	// merges the scope into the settings document the invoke carries. This
-	// replaces the "$value" substitution, which reached one field by rewriting a
-	// literal string anywhere in the action (contracts#20).
+	// The field writes instanceUrl into the form's scope, and submit merges the
+	// scope into the settings document the invoke carries — rather than the
+	// "$value" substitution, which reached one field by rewriting a literal
+	// string anywhere in the action (contracts#20).
 	field := ui.Form(
 		ui.Vars(sdui.Vars(sdui.Var("instanceUrl", sdui.VarString, ""))),
 		ui.SubmitLabel("Use this instance"),
@@ -142,8 +140,8 @@ func changeInstanceSection(custom bool) *ui.Element {
 		field,
 	}
 	if custom {
-		// Only offered when there is something to revert *to*. A reset control on
-		// an install already using the default is a button that does nothing, which
+		// Only offered when there is something to revert to. A reset control on an
+		// install already using the default is a button that does nothing, which
 		// reads as broken the first time somebody presses it.
 		els = append(els, statusRow(
 			ui.Component("Text", ui.Prop("text", "Back to the public instance at "+instanceHost(DefaultInstance)),
@@ -175,22 +173,20 @@ func statusRow(els ...ui.El) *ui.Element {
 // maskInstanceURL renders the instance as evidence of which one is configured
 // without reproducing the profile it names.
 //
-// **The path segments are a credential.** An AIOStreams manifest URL carries the
+// The path segments are a credential: an AIOStreams manifest URL carries the
 // profile id and its encrypted password, and anyone holding the URL holds that
-// user's whole configuration — including whatever debrid key it was built with.
-// A settings screen is a page people screenshot when asking for help, so the
-// host and the readable route stay, and any segment long enough to be an opaque
-// id is reduced to its last four characters: enough to tell two profiles apart,
+// user's whole configuration, including whatever debrid key it was built with. A
+// settings screen is a page people screenshot when asking for help, so the host
+// and the readable route stay, and any segment long enough to be an opaque id is
+// reduced to its last four characters: enough to tell two profiles apart,
 // useless to anyone else.
 //
-// **What this does not cover, and cannot:** the Configure button's OpenURL
-// action carries the whole URL, because a link to somebody else's configuration
-// page is not a link. So the credential is absent from everything *rendered* and
-// present in an action payload — reaching only the admin who already passed
-// `module.read` to open this screen, but out of reach of the Platform's
-// redaction classes, which cannot see inside a module's settings (platform#34).
-// That is the same gap `module-tmdb` records against `configureModule`, arriving
-// by a different route, and it is written down rather than papered over.
+// What this does not cover, and cannot: the Configure button's OpenURL action
+// carries the whole URL, because a link to somebody else's configuration page is
+// not a link. So the credential is absent from everything rendered and present
+// in an action payload — reaching only the admin who already passed module.read
+// to open this screen, but out of reach of the Platform's redaction classes,
+// which cannot see inside a module's settings (platform#34).
 func maskInstanceURL(base string) string {
 	rest := base
 	for _, scheme := range []string{"https://", "http://"} {

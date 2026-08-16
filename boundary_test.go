@@ -11,20 +11,22 @@ import (
 )
 
 // TestModuleImportsOnlyPublishedContracts is the module boundary made
-// executable: this module must use only the published *contract* modules — the
-// SDK (mosaic-sdk) and the shared SDUI contract (mosaic-sdui, which a module
+// executable: this module must use only the published contract modules — the SDK
+// (mosaic-sdk) and the shared SDUI contract (mosaic-sdui, which a module
 // contributes its settings UI with, sdk#4) — and the standard library.
 //
 // It is a separate Go module, so Go itself already rejects a Platform-internal
 // import; this parse keeps the intent explicit and catches a third-party
 // dependency creeping in (sdk#1, platform#12, contracts#3).
 //
-// It also catches the specific temptation this module has and the others do not:
-// `module-stremio-addons` already speaks the same wire protocol, and importing
-// its client would look like avoiding duplication. It is not available to import
-// — a module may not depend on another module — and the small amount of shared
-// shape here is the price of each module being an anti-corruption layer for its
-// own upstream (module-stremio-addons#2).
+// It also catches the temptation specific to this module: module-stremio-addons
+// already speaks the same wire protocol, so importing its client would look like
+// avoiding duplication. A module may not depend on another module, and the small
+// amount of shared shape here is the price of each being an anti-corruption
+// layer for its own upstream (module-stremio-addons#2).
+//
+// It reads this directory only, not the tree, so a package added in a
+// subdirectory — cmd/, say — is not covered unless this walk is widened.
 func TestModuleImportsOnlyPublishedContracts(t *testing.T) {
 	const (
 		sdkPrefix      = "github.com/mosaic-media/sdk/"

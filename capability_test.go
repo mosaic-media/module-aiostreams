@@ -13,10 +13,8 @@ import (
 )
 
 // The provider-role tests run against a fake AIOStreams over httptest, reached
-// by putting the fake's URL in the module's settings — which needs no seam in
-// the production type, because the instance URL is a *setting*. That is the one
-// structural advantage this module has over `module-tmdb`, whose API base is a
-// constant precisely so tests cannot repoint it.
+// by putting the fake's URL in the module's settings. That needs no seam in the
+// production type, because the instance is a setting rather than a constant.
 //
 // Hermetic on purpose. The public instance serves nothing without somebody's
 // profile, and a profile URL is a credential no CI should hold; a test against
@@ -186,12 +184,10 @@ func TestStreamsResolvesAFilmByIMDBIdentity(t *testing.T) {
 	if first.Label != "[RD+] AIOStreams 2160p" {
 		t.Errorf("label = %q, want the instance's short label", first.Label)
 	}
-	// The container and the two codecs (SDK v0.26.0). parseRelease has always
-	// worked these out and StreamLink had nowhere to put them, so they were
-	// discarded here — and this module reaches the library only through the
-	// enrichment pass, so unlike a module attaching its own Parts it had no
-	// second route for them either. They are what platform#27's playability
-	// decision reads.
+	// The container and the two codecs are what platform#27's playability
+	// decision reads, and a StreamLink is the only route this module has to them:
+	// it reaches the library through the enrichment pass and attaches no Parts of
+	// its own.
 	if first.Container != "mkv" {
 		t.Errorf("container = %q, want mkv", first.Container)
 	}
@@ -317,16 +313,13 @@ func TestSubtitlesResolveAndDeduplicate(t *testing.T) {
 }
 
 // TestSubtitlesComposesTheEpisodeAddress is the subtitles half of what
-// TestStreamsComposesTheEpisodeAddress proves for streams, and it could not be
-// written until SDK v0.26.0: SubtitlesRequest carried no coordinates, so this
-// module called addressOf with two zeroes and could answer for a film and
-// nothing else.
+// TestStreamsComposesTheEpisodeAddress proves for streams.
 //
 // The fake answers only the composed path, so a request built from the wrong
-// coordinates — or from none — is a 404 rather than a silently different
-// result. That matters more here than it would elsewhere: subtitles for the
-// wrong episode are not an error anyone sees, they are a track that does not
-// match the dialogue.
+// coordinates — or from none — is a 404 rather than a silently different result.
+// That matters more here than it would elsewhere: subtitles for the wrong
+// episode are not an error anyone sees, they are a track that does not match the
+// dialogue.
 func TestSubtitlesComposesTheEpisodeAddress(t *testing.T) {
 	srv := fakeInstance(t)
 	resp, err := aiostreams.New(srv.Client()).Subtitles(context.Background(), v1.SubtitlesRequest{
@@ -348,7 +341,7 @@ func TestSubtitlesComposesTheEpisodeAddress(t *testing.T) {
 }
 
 func TestABadSettingsDocumentIsAnError(t *testing.T) {
-	// Unparseable settings are the one thing that *is* an error: the module was
+	// Unparseable settings are the one thing that is an error: the module was
 	// handed something it cannot act on at all, which is different from being
 	// asked about a title it does not have.
 	_, err := aiostreams.New(nil).Streams(context.Background(), v1.StreamRequest{

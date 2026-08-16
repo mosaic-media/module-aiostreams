@@ -20,27 +20,25 @@ import (
 // DefaultInstance is the public AIOStreams instance run by ElfHosted, and the
 // module's default.
 //
-// **It is a default host, not a working configuration**, and that distinction is
-// the single most important fact about this module. AIOStreams resolves nothing
+// It is a default host, not a working configuration. AIOStreams resolves nothing
 // until a profile exists: the manifest at this base declares
-// `configurationRequired`, an empty `resources` array and no types, so a stream
+// configurationRequired, an empty resources array and no types, so a stream
 // request against it correctly yields nothing. A user creates a profile on the
 // instance and pastes the resulting manifest URL — which carries their profile
 // id — into this module's settings.
 //
-// Defaulting to it anyway is deliberate. It means the settings screen can offer
-// a working "Configure" link on a fresh install rather than an empty box and a
-// URL to go and find, and it names the instance the module is pointed at instead
-// of leaving that implicit.
+// Defaulting to it anyway lets the settings screen offer a working "Configure"
+// link on a fresh install rather than an empty box and a URL to go and find, and
+// names the instance the module is pointed at instead of leaving that implicit.
 const DefaultInstance = "https://aiostreams.elfhosted.com/stremio"
 
 // manifestTTL is how long a fetched manifest is trusted.
 //
-// It exists because a stream provider is called *per item*: enriching a series
-// asks once per episode, and without a cache that is one manifest fetch per
-// episode on top of the stream fetch that is the actual work. Short enough that
-// reconfiguring an instance takes effect while a user is still looking at the
-// screen, long enough that a season import pays for one.
+// A stream provider is called per item: enriching a series asks once per
+// episode, and without a cache that is one manifest fetch per episode on top of
+// the stream fetch that is the actual work. Short enough that reconfiguring an
+// instance takes effect while a user is still looking at the screen, long enough
+// that a season import pays for one.
 const manifestTTL = 5 * time.Minute
 
 // Manifest is the subset of an addon manifest this module reads. AIOStreams is
@@ -59,7 +57,7 @@ type Manifest struct {
 }
 
 // addonBehaviorHints is the manifest's self-description of its configuration
-// state. `ConfigurationRequired` is the flag an unconfigured AIOStreams instance
+// state. ConfigurationRequired is the flag an unconfigured AIOStreams instance
 // sets, and it is what lets this module tell "pointed at an instance that has no
 // profile yet" apart from "pointed at nothing" — two states that otherwise both
 // look like an empty stream list.
@@ -155,7 +153,7 @@ type InstanceInfo struct {
 	// more useful than "no".
 	Err error
 	// Configured is true when the instance serves a stream resource. An
-	// AIOStreams base with no profile is reachable and *not* configured, which is
+	// AIOStreams base with no profile is reachable and not configured, which is
 	// the state a fresh install is in.
 	Configured  bool
 	Name        string
@@ -166,7 +164,7 @@ type InstanceInfo struct {
 
 // Client talks to one AIOStreams instance. One instance, not a list: this module
 // is a provider for a named upstream, and "which of several sources answered" is
-// the question `module-stremio-addons` exists to ask.
+// the question module-stremio-addons exists to ask.
 type Client struct {
 	http  *http.Client
 	base  string
@@ -188,9 +186,9 @@ func (c *Client) Base() string { return c.base }
 // Streams fetches every stream the instance offers for a content id.
 //
 // All of them rather than the best one (platform#28): AIOStreams' whole purpose is
-// to return a filtered, sorted *set*, and which member of it a particular client
+// to return a filtered, sorted set, and which member of it a particular client
 // can play is not knowable here. The order is the instance's own, which is the
-// user's configured sort — so it is carried through rather than re-ranked.
+// user's configured sort, so it is carried through rather than re-ranked.
 //
 // It returns nothing, and no error, when the instance declares no stream
 // resource for the type. That is the unconfigured-instance case and it is
@@ -322,10 +320,12 @@ func (c *manifestCache) put(base string, m Manifest) {
 // The forms are all things AIOStreams itself hands out. Its "Copy URL" gives the
 // manifest URL; its install button gives the same under the stremio:// scheme;
 // and the page a user is looking at when they decide to copy anything is
-// "…/configure", which is the one most often pasted by hand. Each is trimmed to
-// the same base, and the profile segments *before* those suffixes are preserved
-// — they are the configuration, and a normalisation that dropped the whole path
-// would silently turn a working URL into the unconfigured instance.
+// "…/configure", which is the one most often pasted by hand.
+//
+// It trims a suffix and never a path: the profile segments before those suffixes
+// are the configuration and are preserved. A normalisation that dropped the whole
+// path would silently turn a working URL into the unconfigured instance, which
+// fails as "no streams" rather than as an error.
 //
 // Empty input yields "", which the caller reads as "use the default".
 func normaliseInstanceURL(u string) string {
@@ -422,11 +422,10 @@ func dedupeSubtitles(in []Subtitle) []Subtitle {
 	return out
 }
 
-// userAgent identifies this module to the instance. It matters for reachability
-// rather than courtesy: the public instance is Cloudflare-fronted, and Go's
-// default "Go-http-client/1.1" is the kind of identifier that gets a 403 where
-// any honest custom one is served. That bug cost a day in the Stremio module;
-// it is set here from the start.
+// userAgent identifies this module to the instance. It is load-bearing for
+// reachability rather than courtesy: the public instance is Cloudflare-fronted,
+// and Go's default "Go-http-client/1.1" draws a 403 where any honest custom
+// identifier is served. getJSON sets it on every request.
 var userAgent = "mosaic-module-aiostreams/" + moduleVersion
 
 func (c *Client) getJSON(ctx context.Context, url string, out any) error {
@@ -452,12 +451,13 @@ func (c *Client) getJSON(ctx context.Context, url string, out any) error {
 // releaseDetail is what a consumer ranks a candidate on, parsed out of the
 // stream's free text and behaviorHints (module-stremio-addons#1, platform#27).
 //
-// Every field is best-effort and every one of them is a *guess about a file*
-// rather than a fact about it — the release text is written by whoever made the
-// release, and it lies. What a candidate actually contains is settled by probing
-// the bytes (platform#29). Filling them anyway is what makes a candidate list
-// rankable, and an empty field is not neutral: it was left empty once in the
-// Stremio module and the Platform relayed ten gigabytes of Matroska to a browser.
+// Every field is best-effort and is a guess about a file rather than a fact
+// about it: the release text is written by whoever made the release, and it
+// lies. What a candidate actually contains is settled by probing the bytes
+// (platform#29). Filling them anyway is what makes a candidate list rankable
+// before anything is fetched, and an empty field is not neutral — it leaves a
+// playability decision with nothing to go on, which is how ten gigabytes of
+// Matroska reach a browser that cannot decode it.
 type releaseDetail struct {
 	quality    string
 	sizeBytes  int64
@@ -471,13 +471,12 @@ type releaseDetail struct {
 
 // parseRelease teases the release detail out of a stream.
 //
-// It is hand-written matching rather than regular expressions, and deliberately:
-// AIOStreams lets a user write their own result *formatter*, so the text this
+// It scans whole tokens rather than matching regular expressions, deliberately:
+// AIOStreams lets a user write their own result formatter, so the text this
 // reads is not one upstream's convention but whatever that user configured. A
-// token scan over the whole descriptive text degrades into "found nothing" on an
-// unfamiliar layout, where a pattern anchored on one formatter's punctuation
-// would match the wrong span of a different one and report a confident,
-// incorrect answer.
+// token scan degrades into "found nothing" on an unfamiliar layout, where a
+// pattern anchored on one formatter's punctuation would match the wrong span of
+// a different one and report a confident, incorrect answer.
 func parseRelease(s Stream) releaseDetail {
 	text := s.text()
 	d := releaseDetail{}
@@ -507,7 +506,7 @@ func parseRelease(s Stream) releaseDetail {
 // tokenise splits descriptive text into lowercase alphanumeric-ish tokens.
 // Release text separates facts with everything from dots to emoji, so the
 // separator set is "not a letter, digit, or the few characters that appear
-// *inside* a token" — the plus in "DD+", the dot in "5.1" and in "2.3 GB".
+// inside a token" — the plus in "DD+", the dot in "5.1" and in "2.3 GB".
 func tokenise(text string) []string {
 	return strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
 		switch {
@@ -588,7 +587,7 @@ func findAudioCodec(text string) string {
 var knownContainers = []string{"mkv", "mp4", "m4v", "avi", "ts", "m2ts", "webm", "mov", "wmv", "flv"}
 
 // findContainer reads a container from a filename extension. It looks for a
-// *token* rather than a trailing extension, because release text embeds the
+// token rather than a trailing extension, because release text embeds the
 // filename mid-sentence as often as it ends with it.
 func findContainer(text string) string {
 	for _, tok := range tokenise(text) {
@@ -607,7 +606,7 @@ func findContainer(text string) string {
 }
 
 // findSize reads a human size ("2.3 GB", "700MB") into bytes, decimal units as
-// sources report them. It takes the *first* size in the text: where a formatter
+// sources report them. It takes the first size in the text: where a formatter
 // emits more than one number, the release size leads and anything after it is
 // cache or library statistics.
 func findSize(text string) int64 {

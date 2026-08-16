@@ -6,7 +6,7 @@ import (
 )
 
 // The upstream-shaped unit tests. Everything here is about text a user pasted or
-// a formatter emitted, which is exactly where this module's bugs live.
+// a formatter emitted, which is where this module's bugs live.
 
 func TestNormaliseInstanceURL(t *testing.T) {
 	// Every input is a form AIOStreams itself hands out, plus the ones a person

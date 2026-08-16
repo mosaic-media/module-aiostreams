@@ -14,13 +14,13 @@ const (
 	// CapabilityID is the id the Platform registers this module under and a
 	// caller names to reach its settings screen.
 	//
-	// It sorts before "stremio", and that has a consequence worth stating rather
-	// than discovering: the Platform resolves stream providers in module-id order
-	// and stops at the first that answers (platform#46), so on an install running
-	// both, AIOStreams is asked first and its releases are the ones attached. That
-	// is the intended precedence — a single curated aggregator ahead of an
-	// open-ended addon list — but it is alphabetical accident rather than a policy
-	// the Platform holds, exactly like the cinemeta/tmdb ordering beside it.
+	// It sorts before "stremio", which decides precedence: the Platform resolves
+	// stream providers in module-id order and stops at the first that answers
+	// (platform#46), so on an install running both, AIOStreams is asked first and
+	// its releases are the ones attached. That is the intended order — a single
+	// curated aggregator ahead of an open-ended addon list — but it is
+	// alphabetical accident rather than a policy the Platform holds, exactly like
+	// the cinemeta/tmdb ordering beside it.
 	CapabilityID = "aiostreams"
 	// modulePath is this module's import path, which is how it reads its own
 	// version out of the build graph rather than carrying a constant nothing
@@ -32,7 +32,7 @@ const (
 	streamProvider = "aiostreams"
 	// imdbScheme is the shared external identity this module can address content
 	// by. AIOStreams keys on Stremio ids, which are IMDB ids for film and
-	// television, so an `imdb` identity is directly usable and nothing else is.
+	// television, so an imdb identity is directly usable and nothing else is.
 	imdbScheme = "imdb"
 )
 
@@ -53,11 +53,11 @@ var (
 // Capability is the AIOStreams module: a dedicated stream provider for one named
 // upstream.
 //
-// **What it deliberately does not fill is the point.** It declares no metadata,
-// search or catalog role, so it can never put a title into the library or offer
-// one in a search — an install adds titles through a metadata module and this
-// fills in what plays (platform#46). That is a narrower surface than
-// `module-stremio-addons`, which hosts whatever a user pastes in and therefore
+// What it does not fill is as much the shape as what it does. It declares no
+// metadata, search or catalog role, so it can never put a title into the library
+// or offer one in a search — an install adds titles through a metadata module
+// and this fills in what plays (platform#46). That is a narrower surface than
+// module-stremio-addons, which hosts whatever a user pastes in and therefore
 // inherits whatever those addons do; here the trust decision is a single
 // instance URL a user can read.
 //
@@ -123,11 +123,11 @@ func instanceFrom(settings []byte) (string, error) {
 
 // clientFrom builds a client for the configured instance.
 //
-// Unlike an addon-list module there is no "nothing configured" error path: this
-// module always has an instance, because it ships with one. What it may not have
-// is a *configured* instance, and that is not an error either — the manifest says
-// so and the provider roles decline, which is the honest answer to "what do you
-// have for this title" when the answer is nothing.
+// There is no "nothing configured" error path: this module always has an
+// instance, because it ships with one. What it may not have is a configured
+// instance, and that is not an error either — the manifest says so and the
+// provider roles decline, which is the honest answer to "what do you have for
+// this title" when the answer is nothing.
 func (c *Capability) clientFrom(settings []byte) (*Client, error) {
 	base, err := instanceFrom(settings)
 	if err != nil {
@@ -152,7 +152,7 @@ func (c *Capability) Manifest() v1.Manifest {
 // Import is refused, and that refusal is the module's shape rather than an
 // unimplemented corner.
 //
-// Import materialises a ref a *read* role produced (platform#18). This module fills
+// Import materialises a ref a read role produced (platform#18). This module fills
 // no read role that produces one: it has no search, no catalogs and no metadata,
 // so nothing can hand it a ref it made, and materialising from a stream listing
 // would mean inventing a title out of release names. Titles come from a metadata
@@ -163,7 +163,7 @@ func (c *Capability) Import(_ context.Context, _ v1.ContentService, _ v1.ImportR
 
 // Streams resolves playable locations for a materialised item (RoleStream).
 //
-// It is called by the Platform's enrichment pass for content some *other* module
+// It is called by the Platform's enrichment pass for content some other module
 // sourced (platform#46), which is the only way it is ever called: a ref this module
 // produced does not exist. So the ref carries a shared external identity, and
 // addressOf decides whether it is one AIOStreams can speak.
@@ -224,15 +224,11 @@ func streamLinkFrom(s Stream) v1.StreamLink {
 		SizeBytes: d.sizeBytes,
 		Seeders:   d.seeders,
 		Location:  v1.MediaLocation{Scheme: v1.RemoteLocation, Provider: streamProvider, Ref: s.Ref()},
-		// The container and the two codecs, since SDK v0.26.0. Until then
-		// StreamLink had no fields for them, so most of what parseRelease worked
-		// out was discarded here — and this module reaches the library only
-		// through the enrichment pass (platform#46), so there was no second route
-		// for them either, the way a module attaching its own Parts has one.
-		//
-		// They are what platform#27's playability decision reads. An empty one is
-		// not neutral: the same fields left empty had ten gigabytes of Matroska
-		// relayed to a browser that could not decode it.
+		// These three are what platform#27's playability decision reads, and this
+		// module reaches the library only through the enrichment pass
+		// (platform#46), so a StreamLink is the only route they have. An empty one
+		// is not neutral: it is how ten gigabytes of Matroska reach a browser that
+		// cannot decode it.
 		Container:  d.container,
 		VideoCodec: d.videoCodec,
 		AudioCodec: d.audioCodec,
@@ -247,13 +243,11 @@ func (c *Capability) Subtitles(ctx context.Context, req v1.SubtitlesRequest) (v1
 	if err != nil {
 		return v1.SubtitlesResponse{}, err
 	}
-	// The request's own coordinates, since SDK v0.26.0 carries them. They were
-	// two literal zeroes until then, and that was the whole of the gap: this
-	// module is only ever reached about content it did not source (platform#46), so
-	// the ref carries a shared identity and no native id, and addressOf composes
-	// an episode as `<series>:<season>:<episode>` — with zeroes there was nothing
-	// to compose from and the module could answer for a film and nothing else.
-	// Same call and same helper; the dialect stays in addressOf.
+	// The request's own coordinates, not zeroes: this module is only ever reached
+	// about content it did not source (platform#46), so the ref carries a shared
+	// identity and no native id, and addressOf composes an episode id out of the
+	// season and episode numbers. Without them this can answer for a film and
+	// nothing else. The dialect stays in addressOf.
 	typ, id, ok := addressOf(req.Ref, req.Season, req.Episode)
 	if !ok {
 		return v1.SubtitlesResponse{}, nil
@@ -275,9 +269,9 @@ func (c *Capability) Subtitles(ctx context.Context, req v1.SubtitlesRequest) (v1
 // arrives describing a title some other module sourced, carrying whatever shared
 // identities that module wrote. Only an IMDB id is usable — it is the identity
 // Stremio-protocol sources key on — and an episode's id is composed here as
-// `<series>:<season>:<episode>`, which is why the coordinates arrive as numbers:
-// that colon-separated form is the upstream's convention and nothing outside
-// this file should know it.
+// series:season:episode, which is why the coordinates arrive as numbers: that
+// colon-separated form is the upstream's convention and nothing outside this
+// file should know it.
 //
 // It reports false when there is nothing usable, which is a normal answer and
 // not an error.
