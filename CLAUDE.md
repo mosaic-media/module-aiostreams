@@ -1,309 +1,152 @@
 # Claude Instructions — module-aiostreams
 
-A **dedicated stream provider for one named upstream**. It is an *extension*
-module
-([architecture#3](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0003-two-module-tiers.md)):
-nothing requires it, it is **not a dependency of the Platform**, and a Platform
-gains it only when a user installs it from the signed registry index
-([platform#51](https://github.com/mosaic-media/platform/blob/main/docs/adr/0051-extension-installation-is-user-initiated-and-persistent.md),
-[platform#40](https://github.com/mosaic-media/platform/blob/main/docs/adr/0040-module-distribution-and-trust.md)).
-`cmd/module-aiostreams` is what serves it out of process
-([platform#39](https://github.com/mosaic-media/platform/blob/main/docs/adr/0039-extension-module-boundary.md),
-[sdk#7](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0007-go-plugin-as-the-extension-harness.md)).
+Fleet-wide conventions — commits, decision records, citation form, the roadmap —
+are in [`architecture`](https://github.com/mosaic-media/architecture/blob/main/CLAUDE.md).
+This file is what is specific to `module-aiostreams`.
 
-## Read this first: why it exists beside `module-stremio-addons`
-
-The two look redundant and are not.
+This repository is a **client of one named upstream**: a single AIOStreams
+instance, named by a URL in the module's settings. AIOStreams is itself an
+aggregator, so the breadth lives on the instance and the trust decision here is
+one URL a user can read. **It is not a Stremio addon host** — that is
 [`module-stremio-addons`](https://github.com/mosaic-media/module-stremio-addons)
-is a **host** for whatever addons a user pastes in; this is a **client of one
-named upstream**. That difference is the whole reason for the repository: the
-addon ecosystem is community-made and unreviewed, Mosaic has no access-control
-story that makes an open addon list safe to recommend, and an install that only
-wants streams should not have to adopt that surface to get them. AIOStreams is
-itself an aggregator, so pointing at one instance keeps the breadth and collapses
-the trust decision to a single URL a user can read
-([module-aiostreams#1](docs/adr/0001-a-curated-stream-provider-beside-the-addon-host.md)).
+— and the two are not to be unified: `boundary_test.go` fails a
+`github.com/mosaic-media/module-` import outright, and each module is an
+anti-corruption layer for its own upstream.
 
-**Do not "unify" them.** A shared Stremio-protocol client between two modules is
-not available to build — `boundary_test.go` fails a `github.com/mosaic-media/module-`
-import outright, with "modules compose through the Platform, never with each
-other" — and it is not wanted either. Each module is an anti-corruption layer for
-*its own* upstream, and the small overlap in wire shapes is the price of that,
-not a defect. They already differ where it matters: this one has no per-addon
-routing, no addon catalog, no candidate sampling, and its release parser is
-**token-based** rather than regex-based, because AIOStreams lets a user write
-their own result formatter and a scan for whole tokens degrades into "found
-nothing" on an unfamiliar format instead of matching the wrong thing.
+It is an **extension module**: nothing requires it, and a Platform gains it only
+when a user installs it from the signed registry index — see Release below, and
+`cmd/module-aiostreams`, which serves it out of process. **`README.md` still says
+it is compiled into a Platform binary; that sentence is stale.**
 
-## Do not let it grow into a source
+## What it declares, and what it refuses
 
-It fills **stream**, **subtitles** and **settings UI**, and must acquire no
-metadata, search or catalog role. It has no way to make a `ContentRef`, and
-`Import` **refuses on purpose** rather than returning an empty success — titles
-come from a metadata module and this fills in what plays
-([platform#46](https://github.com/mosaic-media/platform/blob/main/docs/adr/0046-stream-resolution-is-decoupled-from-metadata-provenance.md)).
+`Capability.Manifest` in `capability.go` declares `RoleStream`, `RoleSubtitles`
+and `RoleSettingsUI`, and the compile-time assertions above it fail the build if
+a declared role loses its method.
 
-AIOStreams *does* serve catalogs, and adding that role is exactly the change that
-would turn this into a second content source; it is left out deliberately.
+- **Do not let it grow into a source.** No metadata, search or catalog role, so
+  it can never put a title into the library. AIOStreams does serve catalogs, and
+  adding that role is the change that would make this a second content source.
+- **`Import` refuses with an error** rather than returning an empty success:
+  nothing can hand this module a ref it produced, so a caller routing an import
+  here has made a mistake. `TestImportIsRefused` pins it.
+- **An empty response with no error is a normal answer** from `Streams` and
+  `Subtitles` — an identity that is not an IMDb id, an instance with no profile,
+  and an instance whose sources have nothing all end the same way, and erroring
+  would fail a user's import over a title that was never this module's to know.
 
-**An empty response with no error is a normal answer here, not a degraded one.**
-This module is only ever called about content some other module sourced, so an
-identity it cannot address, an instance with no profile and an upstream with
-nothing for that title all end the same way. Erroring instead would fail a user's
-import over a title that was never this module's to know.
+## The boundary
 
-## Three things about the settings, and each has bitten something already
+`boundary_test.go` parses every non-test import and allows only the standard
+library, `sdk/…` and `contracts/…` — the SDUI exemption is there because this
+module authors its own settings screen. Platform, another module and any
+third-party import all fail.
 
-- **The default instance is a host, not a working configuration.** The public
-  ElfHosted instance declares `configurationRequired` and an empty `resources`
-  array until a user creates a profile — which is why `Configured` is computed
-  from both, not from reachability. Every path here has to treat "reachable but
-  unconfigured" as its own state: it looks identical to broken from the outside
-  — no streams — while being one click from working, and a screen that conflated
-  them would teach a user the module does not work.
-- **The instance URL is a credential.** Its path carries the profile id and its
-  encrypted password; anyone holding it holds that user's whole configuration,
-  including whatever debrid key built it. `maskInstanceURL` keeps the host and
-  the short readable route segments and reduces anything long enough to be an
-  opaque id to its last four characters — enough to tell two profiles apart,
-  useless to anyone else. A settings screen is a page people screenshot when
-  asking for help.
+**It reads this directory only; it does not walk the tree.**
+`cmd/module-aiostreams/main.go` imports `sdk/host` and is therefore *not*
+covered, so a dependency added under `cmd/` is one nothing here catches — adding
+a package outside the root means widening that read in the same change. That
+command file is one line by design: the module builds and behaves identically
+whether or not it is used, and `aiostreams.New` stays what a host calls.
 
-  **What that does not cover, and cannot:** the Configure button's action carries
-  the whole URL, because a link to somebody else's configuration page is not a
-  link. So the credential is absent from everything *rendered* and present in an
-  action payload, out of reach of the Platform's redaction classes
-  ([platform#34](https://github.com/mosaic-media/platform/blob/main/docs/adr/0034-redaction-classes-are-the-pii-boundary.md)),
-  which cannot see inside a module's settings. It is written down rather than
-  papered over, and the test that covers it asserts over rendered **text** rather
-  than over the whole payload — deliberately, so it does not turn into a test
-  that forbids the link.
-- **Normalisation trims a suffix, never a path.** `normaliseInstanceURL` strips a
-  trailing `/manifest.json` or `/configure` and accepts the `stremio://` scheme;
-  the profile segments *before* those suffixes are the configuration and are
-  preserved. A normaliser that dropped the path would silently turn a working URL
-  into the unconfigured public instance, which fails as "no streams" rather than
-  as an error — the worst possible failure mode here.
+## Settings: one field, and it is a credential
 
-## Keep one setting
+`moduleSettings` has one field, `instanceUrl`, and it stays one field.
+`configureModule` replaces the whole settings document with no merge, so with a
+single field the document *is* the value a control is changing and nothing has to
+be echoed back through the client. Everything about how AIOStreams behaves —
+which addons it aggregates, which debrid service, how it filters, sorts and
+formats — lives on the instance behind the profile the URL names.
 
-`configureModule` **replaces** the settings document; there is no merge. With one
-field that costs nothing, because the document *is* the value being changed. A
-second setting would drag the echo-the-secret pattern in here, and it is not
-needed: everything about how AIOStreams behaves — which addons to aggregate,
-which debrid service, how to filter, sort and format — lives on the instance,
-behind the profile the URL names. Mirroring any of it would mean two places to
-change one setting and a module that goes stale every time AIOStreams grows an
-option.
+**The default instance is a host, not a working configuration.** An unconfigured
+AIOStreams declares `configurationRequired` with an empty `resources` array, so
+`InstanceInfo.Configured` is computed from the *manifest* — `declaresResource`
+plus that flag — and never from reachability. Treat "reachable but unconfigured"
+as its own state: from outside it looks identical to broken (no streams) while
+being one click from working. That manifest shape is a claim about a live service
+which the fake asserts rather than checks, so read the real document when
+changing what `Manifest` decodes (`DefaultInstance` plus the suffix):
 
-## Everything runs in the container, nothing runs on the host
+```bash
+curl -sSL https://aiostreams.elfhosted.com/stremio/manifest.json | python3 -m json.tool
+```
 
-**Do not run `go build`, `go test`, `go vet` or `gofmt` directly on this
-machine.** This repository's gate runs inside its test container:
+**The instance URL is a credential.** Its path carries the profile id and its
+encrypted password, so anyone holding it holds that user's whole configuration,
+including whatever debrid key built it.
+
+- **`normaliseInstanceURL` trims a suffix, never a path.** It accepts
+  `stremio://`, drops a query or fragment, and strips a trailing
+  `/manifest.json` or `/configure` — the profile segments before those suffixes
+  are preserved, and a path containing `configure` earlier survives (both are
+  pinned in `aiostreams_internal_test.go`). A normaliser that dropped the path
+  would silently turn a working URL into the unconfigured public instance, which
+  fails as "no streams" rather than as an error.
+- **`maskInstanceURL` keeps the host and the short readable route segments** and
+  reduces anything longer than eight characters to `••••` plus its last four — a
+  settings screen is a page people screenshot when asking for help.
+- **The Configure button's action necessarily carries the whole URL**, because a
+  link to somebody else's configuration page is not a link. So its test asserts
+  over rendered **text**, not the whole payload; keep it that way or it becomes a
+  test that forbids the link.
+- **Telemetry records `instanceHost(...)`, never the URL**, and `getJSON`'s error
+  reports the status without it for the same reason.
+
+## Reading the upstream, and reaching it
+
+- **The release parser is token-based, not regex-based.** AIOStreams lets a user
+  write their own result formatter, so `tokenise` + the `find*` helpers scan for
+  whole tokens: an unfamiliar layout degrades into "found nothing" where a
+  pattern anchored on one formatter's punctuation would match the wrong span and
+  answer confidently wrong. Leave a field empty rather than guessing.
+- **Fill the typed fields anyway.** `Container`, `VideoCodec` and `AudioCodec` on
+  the `StreamLink` are what a playability decision reads, and this module reaches
+  the library only through the enrichment pass, so that link is their only route.
+- **The User-Agent is load-bearing for reachability**, not courtesy: `getJSON`
+  sets it on every request because the public instance is Cloudflare-fronted and
+  answers Go's default `Go-http-client/1.1` with a 403. No test asserts it.
+
+## The gate
 
 ```bash
 docker compose -f docker-compose.test.yml run --rm test
 ```
 
-That runs gofmt, `go build ./...`, `go vet ./...` and `go test ./...` against the
-Go version pinned in `docker-compose.test.yml`, which must stay equal to the one
-in `go.mod`. `.github/workflows/verify.yml` runs the same four steps — **keep the
-two in step.** Append `bash` for a shell in the same environment.
+That is the record-index check, the citation lint, gofmt, `go build`, `go vet`
+and `go test`, against the Go version pinned in the compose file — keep that
+version equal to `go.mod`'s. Append `bash` for a shell in the same environment.
+`.github/workflows/verify.yml` runs the same checks on a `setup-go` runner and is
+what refuses a push; keep the two in step. Do not run any of them on the host: a
+populated module cache, a leftover `go.work` or a stray `replace` can satisfy an
+import a third party's machine could not, and `boundary_test.go` passes anyway
+because the import resolved.
 
-The container asserts **the boundary**: this module compiles against the
-published SDK, the published SDUI contract and the standard library and nothing
-else. A host with a populated module cache, a leftover `go.work` or a stray
-`replace` can satisfy an import a third party's machine could not, and
-`boundary_test.go` still passes because the import resolved.
+**The tests are hermetic** — a fake AIOStreams over `httptest`, reached by
+putting the fake's URL in the module's settings, which needs no seam in the
+production type because the instance *is* a setting. There is no instance CI
+could point at that is not somebody's, and a profile URL is a credential no CI
+should hold; a test that starts needing egress is a design question, not a
+compose-file change.
 
-**The tests are hermetic and must stay that way** — a fake AIOStreams over
-`httptest`, reached by putting the fake's URL in the module's settings. That
-needs no seam in the production type, because the instance is a setting rather
-than a constant. There is no instance CI could point at that is not somebody's,
-and a profile URL is a credential no CI should hold: a test against a real
-instance would be skipped, flaky, or a leak. **A test that starts needing egress
-is a design question, not a compose-file change.**
+## Release
 
-## Versioning and release
+A change is a minor bump, tagged and pushed; **a `replace` must never land in a
+commit**, and the version is read from the build graph by `v1.ModuleVersion`
+rather than held in a constant. Nothing bumps a `require` afterwards.
+`release.yml` reuses `verify.yml`, proves the tag resolvable through the public
+proxy, cross-compiles binaries and a `manifest.json` in `binaries`, then
+dispatches `module-released` at `mosaic-media/registry`. **`dispatch` needs
+`[release, binaries]`**, because the registry catalogues by downloading that
+`manifest.json` from the release assets; it fails rather than warns when
+`REGISTRY_DISPATCH_TOKEN` is unset.
 
-A change is a **minor** bump, tagged and pushed. **Nothing bumps a `require`
-afterwards** — the Platform does not depend on this module, so there is no
-version line anywhere to move. A release reaches people through the
-**catalogue**: `release.yml` proves the tag resolvable through the public proxy,
-its `binaries` job cross-compiles and assembles a `manifest.json` carrying each
-binary's digest, and its `dispatch` job tells the registry there is a new version
-to list.
-
-Two things about that chain, both already got wrong once:
-
-- **`dispatch` waits on `binaries`, not just `release`.** The registry catalogues
-  a release by downloading `manifest.json` from its assets, so an earlier
-  dispatch would point the catalogue at a release whose assets are still
-  uploading, and the entry would be refused for a module that is fine.
-- **A missing dispatch token fails rather than warns.** It used to exit 0, so an
-  unset token reported green while nothing was ever sent. The tag and the
-  binaries already exist by then, so a red run costs nothing that can be undone
-  and is the only way a broken chain becomes visible.
-
-Warm the Go proxy after tagging anyway — anything building this from source
-resolves it as an ordinary Go module, and the proxy and checksum database are
-eventually consistent with a just-pushed tag:
-
-```bash
-curl -s "https://proxy.golang.org/github.com/mosaic-media/module-aiostreams/@v/v0.1.0.info"
-```
-
-**A `replace` must never land in a commit.** The module reports the version that
-was **actually linked**, via `v1.ModuleVersion` reading the build graph — not a
-hand-maintained constant, which nothing forces to agree with anything.
-
-## Decision records
+## Records, licence, observability
 
 [`docs/adr/README.md`](docs/adr/README.md) is the generated index of the records
-this repository owns, with each one's status. **Read the index rather than
-counting files, and do not restate a status here** — it is generated from the
-records and this file is not.
+this repository owns; read it rather than counting files, and never hand-edit it.
+`scripts/adr_index.py` and `scripts/adr_lint.py` are **vendored** from
+`architecture/scripts/` and run by this gate — change them there and re-vendor.
 
-The index script and the citation lint that
-[`architecture`](https://github.com/mosaic-media/architecture) owns for the fleet
-are **vendored into `scripts/` and run by this repository's gate**, so a stale
-index or an unresolvable citation refuses a push here. **Do not edit either copy
-here** — their source is `architecture/scripts/` and a drifted copy is a gate
-enforcing a rule that has moved, which has happened once already. Change them
-there and re-vendor with `architecture/scripts/vendored_scripts.py`.
-
-## Modules are the forcing function for the SDK
-
-When something cannot be expressed, that is a **finding**, not an obstacle to
-work around. Take it to the SDK as an additive bump, or record it in the roadmap
-as an open gap. **Do not simulate the missing surface locally**, and in
-particular **do not attach Parts directly from this module** to get a field
-through — that would make it a content source and duplicate the enrichment pass's
-idempotence rules.
-
-**Which side a finding lands on is not arbitrary.** The SDK says how a module
-interacts with the Platform; the Platform holds the implementations. A gap closed
-by a type or a verb is an SDK bump — a field is a shape. A gap that can only be
-closed by moving values through a Platform pass is behaviour, so it is a Platform
-change reached through a declarative surface. That is the ordinary division, not
-a consolation prize for the half that did not fit.
-
-**Check whether a gap is still open before repeating it.** Both of this module's
-past findings were about somebody else's repository — one about the SDK's request
-shapes, one about the Platform's enrichment pass — and a gap written down here
-stays written down long after the other repository closes it. The roadmap and the
-owning repository's records are where the current answer lives.
-
-## Observability
-
-Observability goes through the SDK's ambient `v1.Telemetry`
-([sdk#5](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0005-modules-observe-through-the-sdk.md)),
-reached as `TelemetryFrom(ctx)`. **Do not print** — go-plugin writes its
-handshake on stdout and anything else corrupts it — and do not configure an
-exporter, a sink or retention; the Platform owns the observability plane. **The
-instance URL is never written to telemetry; the host is.**
-
-## Licensing
-
-**MIT**, unlike the Platform's AGPL
-([architecture#1](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0001-licensing.md)).
-Files here carry **no SPDX header** — match the files already present.
-
-<!-- shared-rules:begin -->
-## Rules every Mosaic repository shares
-
-*Generated. The source is `architecture/shared/repository-rules.md`; edit it there
-and run `scripts/shared_rules.py --write` across the fleet. A copy edited in place
-fails its repository's gate, which is the point: these rules were eleven
-hand-kept copies in four variants, and the abridged ones had quietly dropped the
-reasoning while keeping the rules — and in one case dropped a rule outright.*
-
-### What this file may say
-
-**A `CLAUDE.md` states rules, and facts about its own repository. It does not
-state facts about another one — it links instead.**
-
-An audit of all twelve of these files against their source found 74 stale claims.
-None of roughly 180 rules was wrong; 62 of the 74 were facts about somebody
-else's repository. Ownership predicts rot: a fact about this repository stays true
-because whoever changes the code changes the sentence in the same session, and a
-fact about another one dies the moment they edit it with nothing here going red.
-
-The same applies to facts this repository already publishes in a generated
-artefact — counts, versions, what is built. Point at the artefact.
-
-### Decision records live with the code they govern
-
-Each repository owns the records whose *mechanism* it holds — the spec file, the
-lint gate, the conformance corpus, the composition root, the release workflow.
-A decision can bind five repositories and still have exactly one steward.
-
-- **`docs/adr/`**, numbered from 1 in every repository, with `docs/adr/README.md`
-  a **generated** index. Read the index first; it is the bounded thing.
-- **A record's heading carries no number.** The number lives in the filename and
-  the index only, so a record's anchor survives being renumbered.
-- **Cite a record as `repo#N`, and make it a link** — a relative path within a
-  repository, an absolute URL across them, and the bare label only where no URL
-  is possible, such as a code comment or a Dockerfile. The old `ADR NNNN`
-  spelling is refused by a lint: once every repository numbers from 1, that form
-  resolves quietly to a *different* record instead of dangling, and no tool in
-  the fleet could detect it.
-- **Cross-cutting records stay in [`architecture`](https://github.com/mosaic-media/architecture)** —
-  the ones with no enforcing mechanism anywhere: licensing, repository naming and
-  topology, the module tier model.
-
-### Decision records are append-only
-
-An ADR is an account of what was decided and why, at a time. It is evidence, not
-documentation, and its value is that it was not edited afterwards.
-
-- **Never rewrite a record's body** — not to correct it, not to annotate it, not
-  to add "as built, this differs". That turns a record into a running commentary
-  and destroys the thing it is for.
-- **State changes go in the `**Status:**` line and nowhere else** — built, built
-  in part (naming the part), or superseded, wholly or partly.
-- **A changed decision earns a new record that supersedes it**, with its own
-  Context / Decision / Alternatives / Consequences, and both records then point
-  at each other through their Status lines. The old body stays exactly as it was.
-- **An unbuilt decision is not a superseded one.** "Not done yet" belongs in the
-  Status line and the roadmap; only a reversal earns a new record.
-
-### The roadmap is maintained, not consulted
-
-**`docs/roadmap.md` in [`architecture`](https://github.com/mosaic-media/architecture)
-is the single record of where the build is, across every repository.** It stays
-there because a milestone spans repositories by construction. Read it before
-starting, and **update it in the same session as the change that dates it** — not
-in a follow-up, which does not happen.
-
-- A slice that lands is marked landed, **with what it left out named in the same
-  sentence**. "Built" with no qualifier claims the whole slice shipped.
-- Implementation that departed from its record is recorded where it departed.
-  The surprises are the most valuable thing in it.
-- **Do not restate the roadmap here.** A second copy of "what is built" in a
-  `CLAUDE.md` is how the first copy goes stale unnoticed.
-- A capability with no client path is not done — it is
-  [owed](https://github.com/mosaic-media/architecture/blob/main/docs/unreachable-capability.md).
-
-### Demonstrated, not asserted
-
-**Say what you actually ran.** A skipped test is not a passed test, and "it should
-work" is not evidence.
-
-Each repository's container is the authority on its own gate, and the command is
-in that repository's section below. It exists because the checks that matter fail
-*soft*: a missing PostgreSQL skips storage tests and still prints `ok`, a missing
-generator toolchain produces a drift guard that passes by not running. Where the
-container cannot be run, running what you can on the host is better than running
-nothing — **provided you report which checks ran and which did not.** Claiming a
-gate passed when it was not executed is the one thing this rule exists to stop.
-
-### Commit and push
-
-- **Commit and push each repository separately.** They are siblings on disk and
-  independent in git.
-- **Commit author identity** must be `AdamNi-7080 <anicholls41@gmail.com>`. If git
-  has no identity configured, set it repo-locally rather than globally.
-- **Push once the change has been demonstrated working in this session.** Commit
-  locally and say so otherwise. **Force-push always requires asking.**
-<!-- shared-rules:end -->
+MIT-licensed; files carry **no SPDX header**. Observability goes through
+`v1.TelemetryFrom(ctx)`, and **nothing may be written to stdout**, where
+go-plugin's handshake lives.
